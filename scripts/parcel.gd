@@ -118,8 +118,8 @@ func _process(delta: float) -> void:
 		_mouth.scale.y = lerpf(_mouth.scale.y, 1.0, delta * 6.0)
 		_mouth.scale.x = lerpf(_mouth.scale.x, 1.0, delta * 6.0)
 	if _glow != null:
-		_glow.set_shader_parameter("emission_strength", 0.1 + heat / 100.0 * 1.4)
-		var hot_col := Color("#b8431f").lerp(Color("#ffb347"), heat / 100.0)
+		_glow.set_shader_parameter("emission_strength", 0.08 + heat / 100.0 * 0.55)
+		var hot_col := Color("#a83a1c").lerp(Color("#ff6a1f"), heat / 100.0)
 		_glow.set_shader_parameter("albedo", hot_col)
 	if _steam != null:
 		_steam.emitting = heat > 55.0 and state != "loose"

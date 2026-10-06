@@ -26,19 +26,22 @@ func _ready() -> void:
 	_body = Node3D.new()
 	add_child(_body)
 	var black := Color("#1d1b26")
-	Style.sphere(_body, 0.26, black, Vector3.ZERO, Vector3(1.0, 0.85, 1.6), 7)
-	Style.sphere(_body, 0.17, black, Vector3(0, 0.12, 0.34), Vector3.ONE, 7)
-	Style.cone(_body, 0.06, 0.24, Color("#f0a030"), Vector3(0, 0.1, 0.55), Vector3(90, 0, 0), 5)
-	Style.sphere(_body, 0.045, Color.WHITE, Vector3(0.1, 0.18, 0.43), Vector3.ONE, 5)
-	Style.sphere(_body, 0.045, Color.WHITE, Vector3(-0.1, 0.18, 0.43), Vector3.ONE, 5)
-	Style.sphere(_body, 0.02, Color.BLACK, Vector3(0.11, 0.18, 0.47), Vector3.ONE, 4)
-	Style.sphere(_body, 0.02, Color.BLACK, Vector3(-0.11, 0.18, 0.47), Vector3.ONE, 4)
-	Style.box(_body, Vector3(0.18, 0.04, 0.4), Color("#2c2a3a"), Vector3(0, 0, -0.5), Vector3(-10, 0, 0))
+	var sheen := Color("#2e2c40")
+	Style.sphere(_body, 0.3, black, Vector3.ZERO, Vector3(1.0, 0.85, 1.5), 8)
+	Style.sphere(_body, 0.2, black, Vector3(0, 0.14, 0.4), Vector3.ONE, 8)
+	Style.cone(_body, 0.08, 0.3, Color("#f0a030"), Vector3(0, 0.1, 0.66), Vector3(90, 0, 0), 5)
+	for s in [-1, 1]:
+		Style.sphere(_body, 0.06, Color("#fff3b0"), Vector3(s * 0.11, 0.2, 0.5), Vector3.ONE, 5)
+		Style.sphere(_body, 0.028, Color.BLACK, Vector3(s * 0.12, 0.2, 0.55), Vector3.ONE, 4)
+	for k in 3:
+		Style.box(_body, Vector3(0.1, 0.04, 0.42), black if k == 1 else sheen, Vector3((k - 1) * 0.1, 0, -0.62), Vector3(-8, (k - 1) * 14, 0))
 	for s in [-1, 1]:
 		var w := Node3D.new()
-		w.position = Vector3(s * 0.2, 0.08, 0)
+		w.position = Vector3(s * 0.22, 0.1, 0.05)
 		_body.add_child(w)
-		Style.box(w, Vector3(0.7, 0.04, 0.34), Color("#262433"), Vector3(s * 0.35, 0, 0))
+		Style.box(w, Vector3(0.55, 0.05, 0.6), black, Vector3(s * 0.28, 0, 0))
+		Style.box(w, Vector3(0.4, 0.04, 0.5), sheen, Vector3(s * 0.7, 0, -0.04))
+		Style.box(w, Vector3(0.25, 0.035, 0.34), black, Vector3(s * 1.0, 0, -0.1))
 		_wings.append(w)
 	position = home
 	rotation.y = randf() * TAU
@@ -98,7 +101,7 @@ func _physics_process(delta: float) -> void:
 	var flap := 0.15 if state == S.PERCH or state == S.EAT or state == S.STUNNED else 1.0
 	for i in _wings.size():
 		var s := -1.0 if i == 0 else 1.0
-		_wings[i].rotation.z = s * sin(_t * 26.0 * flap) * 0.7 * flap + s * (0.5 if flap < 0.5 else 0.0)
+		_wings[i].rotation.z = s * sin(_t * 26.0 * flap) * 0.7 * flap + s * (0.14 if flap < 0.5 else 0.0)
 	if parcel != null and is_instance_valid(parcel) and parcel.state == "stolen":
 		parcel.global_position = global_position + Vector3(0, -0.3, 0) + global_basis.z * 0.5
 	if player == null:

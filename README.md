@@ -56,6 +56,11 @@ scenes/    main.tscn
 tests/     smoke.gd, flow.gd (headless), shot.gd (screenshot tool)
 ```
 
+## Asset sheets
+
+`art/` has labelled contact sheets of every asset (goblins & creatures, parcels, props, island, tavern, UI, sound waveforms),
+rendered straight from the engine with `tests/gallery.tscn` (modes: `studio`, `island`, `tavern`, `ui`, `audio`).
+
 ## Tests
 
 ```bash
