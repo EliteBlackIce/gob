@@ -67,6 +67,11 @@ godot --headless --fixed-fps 60 --path . res://tests/flow.tscn
 xvfb-run -a godot --path . --rendering-driver opengl3 res://tests/shot.tscn -- island_wide out.png
 ```
 
+## Feel
+
+Hits flash the screen and freeze the game for a few frames; footsteps, dust puffs, an ocean ambience loop
+and a damage flash round out the feedback. Press ESC to release the mouse (a "PAUSED" banner shows).
+
 ## Roadmap
 
 * Co-op (2-4 goblins carrying parcels together) - the player, parcel and enemy scripts are already separated so networking can be layered on with `MultiplayerSynchronizer`.

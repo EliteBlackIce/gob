@@ -58,6 +58,7 @@ func _ready() -> void:
 		else:
 			t.player.yaw = 0.35
 			t.player.position = Vector3(-3.0, 0.2, 3.0)
+			await _frames(5)
 	else:
 		var j: Dictionary = game.today_jobs[0].duplicate()
 		var isl := Island.new()

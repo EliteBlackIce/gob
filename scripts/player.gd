@@ -45,6 +45,7 @@ var _drown_t := 0.0
 var _prev_vy := 0.0
 var _was_in_water := false
 var _kick_anim := 0.0
+var _step_t := 0.0
 
 
 func _ready() -> void:
@@ -144,6 +145,7 @@ func _physics_process(delta: float) -> void:
 		_dash_cd = 1.1
 		_dash_dir = dir.normalized()
 		Sfx.play("whoosh", -4.0, 1.2)
+		Style.burst(get_parent(), global_position + Vector3(0, 0.1, 0), Color("#e8d8a8"), 8, 3.0, 0.14, 0.5)
 		if carried != null and carried.trait_id == "glass":
 			carried.damage(6.0, "dashed to pieces")
 
@@ -164,6 +166,9 @@ func _physics_process(delta: float) -> void:
 		_launch_t = 0.0
 
 	_water_check(delta)
+	if island != null and global_position.y < -14.0:
+		die("fell off the edge of the world")
+	_footsteps(delta)
 
 	var hspeed := Vector2(velocity.x, velocity.z).length()
 	speed01 = clampf(hspeed / 6.5, 0.0, 1.0) if is_on_floor() else 0.4
@@ -201,9 +206,21 @@ func _water_check(delta: float) -> void:
 		_drown_t = maxf(0.0, _drown_t - delta * 2.0)
 
 
+func _footsteps(delta: float) -> void:
+	var hs := Vector2(velocity.x, velocity.z).length()
+	if not is_on_floor() or hs < 2.0 or _launch_t > 0.0:
+		_step_t = 0.0
+		return
+	_step_t -= delta
+	if _step_t <= 0.0:
+		_step_t = 0.42 * 6.2 / maxf(hs, 3.0)
+		Sfx.play("splash" if in_water else "step", -14.0 if in_water else -12.0, randf_range(0.85, 1.2))
+
+
 func _land(impact: float) -> void:
 	shake = maxf(shake, 0.2)
 	Sfx.play("thud", -4.0)
+	Style.burst(get_parent(), global_position + Vector3(0, 0.1, 0), Color("#e8d8a8"), 8, 2.5, 0.14, 0.5)
 	if carried != null and carried.trait_id == "glass":
 		carried.damage(impact * 1.1, "landed on its face")
 
@@ -288,6 +305,9 @@ func take_hit(from_dir: Vector3, force: float, dmg: int, cause: String) -> void:
 	Sfx.play("hurt")
 	shake = 0.4
 	invuln = 1.0
+	if ui != null:
+		ui.flash_damage(0.45)
+		ui.hitstop(0.07)
 	launch(from_dir.normalized() * force + Vector3.UP * force * 0.5)
 	if carried != null:
 		carried.damage(18.0, "got in the way of a hit")

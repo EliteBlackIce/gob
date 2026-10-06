@@ -105,8 +105,10 @@ static func solid_box(parent: Node, size: Vector3, pos := Vector3.ZERO) -> Stati
 	return sb
 
 
-static func label3d(parent: Node, text: String, pos: Vector3, size := 0.02, color := Color("#f3e3b5"), rot := Vector3.ZERO) -> Label3D:
+static func label3d(parent: Node, text: String, pos: Vector3, size := 0.02, color := Color("#f3e3b5"), rot := Vector3.ZERO, billboard := false) -> Label3D:
 	var l := Label3D.new()
+	if billboard:
+		l.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	l.text = text
 	l.pixel_size = size
 	l.modulate = color

@@ -37,8 +37,8 @@ func _build_environment() -> void:
 	env.background_mode = Environment.BG_COLOR
 	env.background_color = Color("#0e0a12")
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	env.ambient_light_color = Color("#6d5f88")
-	env.ambient_light_energy = 0.9
+	env.ambient_light_color = Color("#7a82b8")
+	env.ambient_light_energy = 0.85
 	env.tonemap_mode = Environment.TONE_MAPPER_FILMIC
 	env.glow_enabled = true
 	env.glow_intensity = 0.7
@@ -57,12 +57,30 @@ func _build_environment() -> void:
 
 
 func _build_room() -> void:
-	var wood := Color("#5e3f25")
-	var wall := Color("#4a3320")
-	var beam := Color("#35220f")
+	var wood := Color("#8a5c36")
+	var wall := Color("#6b5a66")
+	var beam := Color("#3a2616")
 	for i in 11:
 		Style.box(self, Vector3(2.0, 0.2, 16.0), wood if i % 2 == 0 else wood.darkened(0.12), Vector3(-10.0 + i * 2.0, -0.1, 0))
 	Style.solid_box(self, Vector3(22, 0.6, 16), Vector3(0, -0.3, 0))
+	# big red rug in the middle, gold border (the reference tavern has one)
+	Style.box(self, Vector3(9.4, 0.04, 6.4), Color("#d8a64a"), Vector3(2.0, 0.02, 1.0))
+	Style.box(self, Vector3(8.8, 0.05, 5.8), Color("#a8322f"), Vector3(2.0, 0.03, 1.0))
+	Style.box(self, Vector3(7.0, 0.06, 4.0), Color("#c4483c"), Vector3(2.0, 0.04, 1.0))
+	Style.box(self, Vector3(2.4, 0.07, 1.2), Color("#e8c060"), Vector3(2.0, 0.05, 1.0))
+	# plaster band + wainscot so walls are not one flat colour
+	for wz in [-7.92, 7.92]:
+		Style.box(self, Vector3(21.6, 1.3, 0.1), Color("#4a3320"), Vector3(0, 0.65, wz))
+	for wx in [-10.92, 10.92]:
+		Style.box(self, Vector3(0.1, 1.3, 15.6), Color("#4a3320"), Vector3(wx, 0.65, 0))
+	# barrels + crates in the corners
+	for bp in [Vector3(9.4, 0, 6.6), Vector3(10.1, 0, 5.5), Vector3(-9.6, 0, 6.8), Vector3(9.5, 0, -6.4)]:
+		Style.cyl(self, 0.5, 0.55, 0.95, Color("#8a5a30"), bp + Vector3(0, 0.48, 0), Vector3.ZERO, 9)
+		Style.torus(self, 0.03, 0.52, Color("#3a2a1a"), bp + Vector3(0, 0.25, 0))
+		Style.torus(self, 0.03, 0.52, Color("#3a2a1a"), bp + Vector3(0, 0.72, 0))
+		Style.solid_box(self, Vector3(1.0, 1.0, 1.0), bp + Vector3(0, 0.5, 0))
+	Style.box(self, Vector3(0.9, 0.7, 0.9), Color("#b08850"), Vector3(-9.8, 0.35, 5.6), Vector3(0, 20, 0))
+	Style.box(self, Vector3(0.7, 0.55, 0.7), Color("#a07a48"), Vector3(-9.6, 0.97, 5.7), Vector3(0, -15, 0))
 	# walls with beams
 	Style.box(self, Vector3(22, 6.5, 0.4), wall, Vector3(0, 3.25, -8.2))
 	Style.box(self, Vector3(22, 6.5, 0.4), wall, Vector3(0, 3.25, 8.2))
@@ -80,11 +98,19 @@ func _build_room() -> void:
 	for i in 5:
 		Style.box(self, Vector3(0.5, 6.5, 0.5), beam, Vector3(-10.9, 3.25, -6.0 + i * 3.0))
 		Style.box(self, Vector3(0.5, 6.5, 0.5), beam, Vector3(10.9, 3.25, -6.0 + i * 3.0))
+	# Camera-only blockers, inset from the walls/ceiling (layer 16): the third-person
+	# camera stops before it can end up inside beams, but the goblin isn't affected.
+	for cb in [[Vector3(22, 8, 0.4), Vector3(0, 3, -7.5)], [Vector3(22, 8, 0.4), Vector3(0, 3, 7.5)],
+			[Vector3(0.4, 8, 16), Vector3(-10.5, 3, 0)], [Vector3(0.4, 8, 16), Vector3(10.5, 3, 0)],
+			[Vector3(22, 0.4, 16), Vector3(0, 6.1, 0)]]:
+		var blk := Style.solid_box(self, cb[0], cb[1])
+		blk.collision_layer = 16
+		blk.collision_mask = 0
 	# exit door (front wall)
 	Style.box(self, Vector3(2.6, 3.6, 0.3), beam, Vector3(0, 1.8, 7.9))
 	Style.box(self, Vector3(2.2, 3.3, 0.16), Color("#7a5232"), Vector3(0, 1.65, 7.7))
 	Style.box(self, Vector3(0.14, 0.5, 0.14), Color("#e0b84a"), Vector3(0.7, 1.6, 7.55), Vector3.ZERO, 0.3)
-	Style.label3d(self, "OUT (to certain peril)", Vector3(0, 3.9, 7.7), 0.012, Color("#f3d98a"), Vector3(0, 180, 0))
+	Style.label3d(self, "OUT (to certain peril)", Vector3(0, 3.9, 7.7), 0.009, Color("#f3d98a"), Vector3(0, 180, 0))
 	Style.light(self, Color("#9ab8ff"), 0.9, 7.0, Vector3(0, 2.5, 6.0))
 	Interactable.make(self, Vector3(0, 1.0, 6.9), "Head out to work", Callable(self, "_exit_door"), 3.0)
 	# windows with moonlight
@@ -96,8 +122,8 @@ func _build_room() -> void:
 
 
 func _build_bar() -> void:
-	var wood := Color("#7a5430")
-	var rope := Color("#c8b48a")
+	var wood := Color("#a8743c")
+	var rope := Color("#d8c49a")
 	for i in 6:
 		var bx := -9.0 + i * 1.6
 		Style.cyl(self, 0.62, 0.62, 1.1, Color("#8a5a30"), Vector3(bx, 0.55, -4.0), Vector3.ZERO, 9)
@@ -113,9 +139,10 @@ func _build_bar() -> void:
 		Style.box(self, Vector3(1.8, 0.1, 0.5), wood.darkened(0.2), Vector3(-9.0 + i * 2.2, 3.0, -7.7))
 		for k in 3:
 			Style.cyl(self, 0.07, 0.07, 0.4, [Color("#3e9c5a"), Color("#c0504a"), Color("#d8a04a")][k], Vector3(-9.5 + i * 2.2 + k * 0.4, 3.25, -7.7), Vector3.ZERO, 6, 0.12)
-	Style.label3d(self, "THE SOGGY STAMP", Vector3(-5.6, 4.6, -7.9), 0.014, Color("#f3d98a"))
+	Style.label3d(self, "THE SOGGY STAMP", Vector3(-5.6, 4.6, -7.9), 0.011, Color("#f3d98a"))
 	var bt := GoblinModel.build(Color("#8a3a30"), Color("#7aa83a"), false)
-	bt.position = Vector3(-5.6, 0, -5.6)
+	bt.position = Vector3(-5.6, 0.45, -5.6)
+	Style.box(self, Vector3(1.2, 0.45, 1.0), Color("#6a4527"), Vector3(-5.6, 0.22, -5.6))
 	add_child(bt)
 	Style.light(self, Color("#ffb347"), 1.4, 7.5, Vector3(-5.6, 3.2, -4.5))
 	Style.cyl(self, 0.08, 0.1, 0.25, Color("#f4efd8"), Vector3(-2.0, 1.34, -3.8), Vector3.ZERO, 6)
@@ -125,9 +152,14 @@ func _build_bar() -> void:
 
 
 func _build_fireplace() -> void:
-	var stone := Color("#6a6a74")
+	var stone := Color("#9a8f86")
 	Style.box(self, Vector3(1.4, 4.4, 5.0), stone, Vector3(10.4, 2.2, -2.0))
-	Style.box(self, Vector3(1.0, 2.0, 2.6), Color("#14100e"), Vector3(9.95, 1.2, -2.0))
+	Style.box(self, Vector3(0.08, 2.1, 2.8), Color("#1a1210"), Vector3(9.64, 1.15, -2.0))
+	Style.box(self, Vector3(0.5, 0.25, 3.1), stone.lightened(0.15), Vector3(9.5, 2.3, -2.0))
+	Style.box(self, Vector3(0.5, 2.3, 0.3), stone.lightened(0.05), Vector3(9.5, 1.15, -3.55))
+	Style.box(self, Vector3(0.5, 2.3, 0.3), stone.lightened(0.05), Vector3(9.5, 1.15, -0.45))
+	Style.solid_box(self, Vector3(1.4, 4.4, 5.0), Vector3(10.4, 2.2, -2.0))
+	Style.solid_box(self, Vector3(0.8, 2.3, 3.4), Vector3(9.5, 1.15, -2.0))
 	Style.box(self, Vector3(1.8, 0.35, 5.4), stone.lightened(0.1), Vector3(10.1, 4.5, -2.0))
 	Style.box(self, Vector3(1.4, 0.3, 3.4), stone.lightened(0.1), Vector3(10.2, 0.15, -2.0))
 	var wheel := Node3D.new()
@@ -137,12 +169,14 @@ func _build_fireplace() -> void:
 	Style.torus(wheel, 0.1, 0.75, Color("#7a5232"))
 	for k in 8:
 		Style.box(wheel, Vector3(0.08, 1.7, 0.1), Color("#7a5232"), Vector3.ZERO, Vector3(0, 0, k * 22.5))
-	for k in 3:
-		var f := Style.cone(self, 0.3 - k * 0.05, 1.0 - k * 0.15, [Color("#ff8a2a"), Color("#ffb347"), Color("#fff0a0")][k], Vector3(9.9, 0.7 + k * 0.1, -2.0 + (k - 1) * 0.45), Vector3.ZERO, 5)
-		(f.material_override as ShaderMaterial).set_shader_parameter("emission_strength", 1.6)
+	for k in 5:
+		var fc: Color = [Color("#ff5a1a"), Color("#ff8a2a"), Color("#ffb347"), Color("#ff8a2a"), Color("#ff5a1a")][k]
+		var f := Style.cyl(self, 0.0, 0.34 - absf(k - 2) * 0.07, 1.25 - absf(k - 2) * 0.22, fc, Vector3(9.4, 0.75 + (0.1 if k == 2 else 0.0), -2.0 + (k - 2) * 0.42), Vector3.ZERO, 5, 2.6)
 		_flames.append(f)
+	var core := Style.cyl(self, 0.0, 0.16, 0.8, Color("#fff4b0"), Vector3(9.35, 0.7, -2.0), Vector3.ZERO, 5, 3.5)
+	_flames.append(core)
 	for k in 4:
-		Style.cyl(self, 0.12, 0.12, 1.6, Color("#4a2f1a"), Vector3(10.0, 0.25, -2.6 + k * 0.4), Vector3(0, 0, 90), 6)
+		Style.cyl(self, 0.12, 0.12, 1.6, Color("#4a2f1a"), Vector3(9.45, 0.22, -2.6 + k * 0.4), Vector3(0, 0, 90), 6)
 	_fire_light = Style.light(self, Color("#ff8a3a"), 3.6, 13.0, Vector3(8.6, 1.2, -2.0))
 	_fire_light.shadow_enabled = true
 	Style.light(self, Color("#ffb060"), 1.2, 7.0, Vector3(8.8, 2.8, -2.0))
@@ -159,7 +193,7 @@ func _build_fireplace() -> void:
 	sp.initial_velocity_min = 1.0
 	sp.initial_velocity_max = 2.8
 	sp.gravity = Vector3(0, 0.3, 0)
-	sp.position = Vector3(9.9, 1.4, -2.0)
+	sp.position = Vector3(9.4, 1.5, -2.0)
 	add_child(sp)
 
 
@@ -169,7 +203,7 @@ func _build_board_and_boss() -> void:
 	Style.box(self, Vector3(0.1, 3.0, 3.8), Color("#8a6a45"), Vector3(-10.65, 2.6, -1.0))
 	for k in 6:
 		Style.box(self, Vector3(0.06, 0.8, 0.6), Color("#f1e6c8").darkened(randf() * 0.12), Vector3(-10.55, 2.0 + (k % 3) * 0.9, -2.2 + (k / 3) * 2.0), Vector3(randf_range(-8, 8), 0, randf_range(-8, 8)))
-	Style.label3d(self, "JOBS", Vector3(-10.5, 4.7, -1.0), 0.03, Color("#f3d98a"), Vector3(0, 90, 0))
+	Style.label3d(self, "JOBS", Vector3(-10.5, 4.7, -1.0), 0.016, Color("#f3d98a"), Vector3(0, 90, 0))
 	Interactable.make(self, Vector3(-9.2, 1.0, -1.0), "Browse the job board", Callable(self, "_job_board"), 3.2)
 
 	# boss door (back wall)
@@ -183,7 +217,7 @@ func _build_board_and_boss() -> void:
 
 	# wall of shame (left wall, front half)
 	Style.box(self, Vector3(0.2, 3.4, 5.2), Color("#2a2030"), Vector3(-10.9, 2.7, 4.6))
-	Style.label3d(self, "WALL OF SHAME", Vector3(-10.7, 4.8, 4.6), 0.02, Color("#d8a0a0"), Vector3(0, 90, 0))
+	Style.label3d(self, "WALL OF SHAME", Vector3(-10.7, 4.8, 4.6), 0.011, Color("#d8a0a0"), Vector3(0, 90, 0))
 	_shame_labels = Style.label3d(self, "", Vector3(-10.7, 2.9, 4.6), 0.0055, Color("#e8d8d8"), Vector3(0, 90, 0))
 	_shame_labels.line_spacing = 6
 	_refresh_shame()
@@ -194,7 +228,7 @@ func _build_board_and_boss() -> void:
 	for k in 4:
 		Style.box(self, Vector3(1.8, 0.1, 0.35), Color("#4a3320"), Vector3(-5.0, 0.12, 2.6 + k * 0.4))
 	Style.torus(self, 0.03, 0.18, Color("#8a8a92"), Vector3(-5.0, 0.2, 3.2), Vector3(90, 0, 0))
-	Style.label3d(self, "CELLAR (training)", Vector3(-5.0, 1.3, 3.2), 0.01, Color("#f3d98a"))
+	Style.label3d(self, "CELLAR (training)", Vector3(-5.0, 1.2, 3.2), 0.006, Color("#f3d98a"), Vector3.ZERO, true)
 	Interactable.make(self, Vector3(-5.0, 0.6, 3.2), "Climb into the cellar (skills)", Callable(self, "_cellar"), 2.8)
 
 
@@ -236,10 +270,12 @@ func _build_decor() -> void:
 func _spawn_player() -> void:
 	player = Player.new()
 	player.ui = ui
-	player.cam_dist = 4.6
-	player.pitch = -0.2
+	player.cam_dist = 5.6
+	player.pitch = -0.38
 	player.position = Vector3(1.0, 0.2, 3.0)
 	add_child(player)
+	player.arm.margin = 0.3
+	player.arm.collision_mask = 1 | 16
 	player.setup_for_run(false)
 	player.model.rotation.y = PI
 	player.yaw = 0.0
@@ -248,7 +284,7 @@ func _spawn_player() -> void:
 func _make_marker(color: Color) -> Node3D:
 	var n := Node3D.new()
 	add_child(n)
-	Style.cyl(n, 0.0, 0.2, 0.42, color, Vector3.ZERO, Vector3(180, 0, 0), 4, 0.7)
+	Style.cyl(n, 0.0, 0.16, 0.34, color, Vector3.ZERO, Vector3(180, 0, 0), 4, 0.35)
 	Style.light(n, color, 0.5, 3.5, Vector3(0, -0.5, 0))
 	return n
 

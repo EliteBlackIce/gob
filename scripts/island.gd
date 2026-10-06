@@ -65,6 +65,7 @@ func _ready() -> void:
 	ui.set_dest("%s" % job["dest_name"])
 	ui.hud_player = player
 	ui.show_hud(true)
+	Sfx.ambience(true)
 	ui.toast("Deliver: %s  ->  %s" % [job["title"], job["dest_name"]], Color("#f3e3b5"))
 	Game.clips.clear()
 
@@ -139,7 +140,7 @@ func _build_terrain() -> void:
 				c = Color("#ecd999").lerp(Color("#d8c27e"), jit)
 			else:
 				c = Color("#3b9a2c").lerp(Color("#7ccb3c"), jit)
-				c = c.lerp(Color("#c9a468"), onpath * 0.85)
+				c = c.lerp(Color("#c4ae86"), onpath * 0.8)
 			if (slope > 1.0 and h > 1.0) or h > 10.0:
 				c = Color("#c2b08a").lerp(Color("#9a8a68"), jit)
 			cols[idx] = c.srgb_to_linear()
@@ -221,7 +222,7 @@ func _build_environment() -> void:
 	env.sky = sky
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 	env.ambient_light_color = Color("#bcc8d6")
-	env.ambient_light_energy = 0.7
+	env.ambient_light_energy = 0.95
 	env.tonemap_mode = Environment.TONE_MAPPER_FILMIC
 	env.tonemap_exposure = 1.0
 	env.glow_enabled = true

@@ -25,6 +25,7 @@ func _free_current() -> void:
 
 func _load_tavern(first_load := false) -> void:
 	_free_current()
+	Sfx.ambience(false)
 	var t := Tavern.new()
 	t.ui = ui
 	t.start_run.connect(_on_start_run)

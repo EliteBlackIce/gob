@@ -7,6 +7,8 @@ var _bank: Dictionary = {}
 var _pool: Array[AudioStreamPlayer] = []
 var _music: AudioStreamPlayer
 var _music_stream: AudioStreamWAV
+var _amb: AudioStreamPlayer
+var _amb_tw: Tween
 
 
 func _ready() -> void:
@@ -33,6 +35,7 @@ func _ready() -> void:
 	_bank["yeet"] = _tone(250.0, 0.7, 2, 900.0, 0.5, 2.0, 0.0, 6.0)
 	_bank["error"] = _cat([_tone(220.0, 0.12, 2, 0.0, 0.5, 6.0), _tone(160.0, 0.2, 2, 0.0, 0.5, 6.0)])
 	_bank["pop"] = _tone(600.0, 0.1, 0, 400.0, 0.6, 20.0)
+	_bank["step"] = _tone(150.0, 0.07, 0, -70.0, 0.4, 20.0, 0.75)
 	_bank["clip"] = _cat([_tone(1200.0, 0.04, 1, 0.0, 0.4, 30.0), _tone(1600.0, 0.08, 1, 0.0, 0.4, 20.0)])
 	_music = AudioStreamPlayer.new()
 	_music.volume_db = -14.0
@@ -40,6 +43,10 @@ func _ready() -> void:
 	_music_stream = _make_shanty()
 	_music.stream = _music_stream
 	_music.play()
+	_amb = AudioStreamPlayer.new()
+	_amb.stream = _make_ocean()
+	_amb.volume_db = -60.0
+	add_child(_amb)
 
 
 func play(sound: String, vol_db := 0.0, pitch := 1.0) -> void:
@@ -52,6 +59,37 @@ func play(sound: String, vol_db := 0.0, pitch := 1.0) -> void:
 			p.pitch_scale = pitch * randf_range(0.97, 1.03)
 			p.play()
 			return
+
+
+## Seamless ocean wash for the island. Fades in/out so scene swaps don't pop.
+func ambience(on: bool, db := -17.0) -> void:
+	if _amb_tw != null and _amb_tw.is_valid():
+		_amb_tw.kill()
+	if on and not _amb.playing:
+		_amb.play()
+	_amb_tw = create_tween()
+	_amb_tw.tween_property(_amb, "volume_db", db if on else -60.0, 1.2)
+	if not on:
+		_amb_tw.tween_callback(_amb.stop)
+
+
+func _make_ocean() -> AudioStreamWAV:
+	var secs := 6.0
+	var n := int(secs * RATE)
+	var data := PackedByteArray()
+	data.resize(n * 2)
+	var lp := 0.0
+	var seed_v := 987654
+	for i in n:
+		var t := float(i) / RATE
+		seed_v = (seed_v * 1103515245 + 12345) & 0x7fffffff
+		var white := (float(seed_v) / 1073741823.5) - 1.0
+		lp += (white - lp) * 0.08
+		var swell := 0.5 + 0.5 * sin(TAU * t / secs * 1.0 - 1.2)
+		var swell2 := 0.5 + 0.5 * sin(TAU * t / secs * 2.0)
+		var amp := 0.25 + 0.55 * swell * swell + 0.2 * swell2
+		data.encode_s16(i * 2, clampi(int(lp * amp * 9000.0), -32768, 32767))
+	return _wav(data, true)
 
 
 func music_volume(db: float) -> void:

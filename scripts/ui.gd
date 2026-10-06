@@ -30,6 +30,8 @@ var _hearts: Control
 var _mandate: Label
 var _crosshair: Control
 var _fade: ColorRect
+var _dmg: ColorRect
+var _pause_label: Label
 var _modal: Control
 var _banner: Control
 var _banner_title: Label
@@ -105,6 +107,15 @@ func _ready() -> void:
 	_build_hud()
 	_build_banner()
 	_build_qte()
+	_dmg = ColorRect.new()
+	_dmg.color = Color(0.85, 0.08, 0.05, 0.0)
+	_dmg.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_dmg.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_root.add_child(_dmg)
+	_pause_label = _label("PAUSED  -  click to get back to work", 34, Color("#fff3cf"), true, _root)
+	_pause_label.set_anchors_preset(Control.PRESET_CENTER)
+	_pause_label.position = Vector2(-330, -20)
+	_pause_label.visible = false
 	_fade = ColorRect.new()
 	_fade.color = Color(0.04, 0.03, 0.05, 1.0)
 	_fade.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -262,6 +273,22 @@ func show_hud(v: bool) -> void:
 	_hud.visible = v
 
 
+func flash_damage(strength := 0.4) -> void:
+	_dmg.color.a = strength
+	var tw := _dmg.create_tween().set_ignore_time_scale(true)
+	tw.tween_property(_dmg, "color:a", 0.0, 0.5)
+
+
+## A couple of frames of freeze on a big hit. Skipped if slow-mo is already running.
+func hitstop(secs := 0.07) -> void:
+	if Engine.time_scale < 0.99:
+		return
+	Engine.time_scale = 0.06
+	await get_tree().create_timer(secs, true, false, true).timeout
+	if Engine.time_scale < 0.2:
+		Engine.time_scale = 1.0
+
+
 func configure_hud(island_mode: bool) -> void:
 	_dest.visible = island_mode
 	_compass.visible = island_mode
@@ -271,6 +298,11 @@ func configure_hud(island_mode: bool) -> void:
 	_parcel_status.visible = island_mode
 	show_compass = island_mode
 	_mandate.text = "Grubnik says: " + str(Game.mandate["text"])
+	_mandate.modulate.a = 1.0
+	if island_mode:
+		var tw := _mandate.create_tween()
+		tw.tween_interval(12.0)
+		tw.tween_property(_mandate, "modulate:a", 0.0, 1.5)
 
 
 func set_dest(text: String) -> void:
@@ -284,6 +316,8 @@ func set_timer(sec: float) -> void:
 
 
 func _process(delta: float) -> void:
+	if _pause_label != null:
+		_pause_label.visible = capture_wanted and Input.mouse_mode == Input.MOUSE_MODE_VISIBLE and not modal_open and _hud != null and _hud.visible
 	if _hud == null or not _hud.visible:
 		return
 	_copper.text = "COPPER  %d" % Game.copper
