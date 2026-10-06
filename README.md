@@ -3,7 +3,7 @@
 You are a goblin. Your boss doesn't care. The parcels are screaming. Deliver them anyway.
 
 A slapstick delivery RPG for **Godot 4.4** (GL Compatibility renderer, pure GDScript).
-Everything - models, terrain, sounds, music - is generated procedurally, so the repo contains no binary assets.
+Everything - models, terrain, textures, sounds, music - is generated procedurally, so the repo contains no binary assets.
 
 ## Run it
 
@@ -54,6 +54,22 @@ scripts/   game code (game.gd = state/skills/jobs, island.gd = a run, tavern.gd 
 shaders/   stylized.gdshader (painterly flat-facet look), water.gdshader
 scenes/    main.tscn
 tests/     smoke.gd, flow.gd (headless), shot.gd (screenshot tool)
+```
+
+## Art pipeline
+
+The look is hand-painted-stylised (Sea of Thieves-ish): warm sun, tinted cool shadows, soft light wrap, brush-stroke
+colour variation, wood grain, chipped-paint edge wear, baked ambient occlusion, rim light and subsurface glow.
+
+```
+shaders/painted.gdshader   the one surface shader every object uses (+ wind sway for foliage)
+shaders/water.gdshader     depth-aware sea: turquoise shallows, lapping foam, caustics, sun glints
+scripts/gfx/mesh_kit.gd    procedural modelling: bevelled boxes, lathes, tubes, sculpt blobs, cloth, palm fronds, broad leaves, rocks
+scripts/gfx/paint.gd       material presets (wood, painted, cloth, stone, metal, skin, leaf, glass, glow)
+scripts/gfx/structures.gd  buildings & furniture: plank walls, shingle roofs, doors, windows, barrels, crates, torches, lanterns, sails, rugs
+scripts/gfx/props.gd       foliage: palms, glossy jungle leaves, red plants, ferns, grass, bushes
+scripts/gfx/atmos.gd       day / interior lighting, sky, glow, fog and grading presets
+scripts/goblin_model.gd    the postal goblin: sculpted head, jointed rig, procedural run / kick / wave animation
 ```
 
 ## Asset sheets

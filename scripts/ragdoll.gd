@@ -14,7 +14,7 @@ static func spawn(parent: Node, pos: Vector3, impulse: Vector3, tunic := GoblinM
 	return r
 
 
-func _part(size: Vector3, color: Color, local: Vector3, mass: float, is_sphere := false) -> RigidBody3D:
+func _part(size: Vector3, local: Vector3, mass: float, is_sphere := false) -> RigidBody3D:
 	var rb := RigidBody3D.new()
 	rb.mass = mass
 	rb.collision_layer = 4
@@ -26,12 +26,10 @@ func _part(size: Vector3, color: Color, local: Vector3, mass: float, is_sphere :
 		var s := SphereShape3D.new()
 		s.radius = size.x
 		cs.shape = s
-		Style.sphere(rb, size.x, color, Vector3.ZERO, Vector3.ONE, 8)
 	else:
 		var b := BoxShape3D.new()
 		b.size = size
 		cs.shape = b
-		Style.box(rb, size, color)
 	rb.add_child(cs)
 	add_child(rb)
 	rb.position = local
@@ -47,17 +45,40 @@ func _pin(a: RigidBody3D, b: RigidBody3D, at: Vector3) -> void:
 	j.node_b = j.get_path_to(b)
 
 
+## Borrow a mesh node out of a fresh goblin model and re-parent it onto a rigid body.
+func _steal(src: Node3D, path: String, to: Node3D, offset: Vector3) -> void:
+	var n := src.get_node_or_null(path) as Node3D
+	if n == null:
+		return
+	var gt := n.global_transform
+	var copy := n.duplicate() as Node3D
+	to.add_child(copy)
+	copy.global_transform = Transform3D(gt.basis, gt.origin + offset)
+
+
 func _build(impulse: Vector3, tunic: Color) -> void:
-	torso = _part(Vector3(0.5, 0.55, 0.32), tunic, Vector3(0, 0.8, 0), 1.4)
-	var head := _part(Vector3(0.27, 0, 0), GoblinModel.SKIN, Vector3(0, 1.3, 0), 0.7, true)
-	_pin(torso, head, Vector3(0, 1.1, 0))
-	Style.cone(head, 0.12, 0.5, GoblinModel.SKIN_DARK, Vector3(0.38, 0, 0), Vector3(0, 0, -78), 4)
-	Style.cone(head, 0.12, 0.5, GoblinModel.SKIN_DARK, Vector3(-0.38, 0, 0), Vector3(0, 0, 78), 4)
-	for s in [-1, 1]:
-		var arm := _part(Vector3(0.12, 0.5, 0.13), GoblinModel.SKIN, Vector3(s * 0.38, 0.8, 0), 0.3)
-		_pin(torso, arm, Vector3(s * 0.34, 1.02, 0))
-		var leg := _part(Vector3(0.17, 0.5, 0.19), Color("#6b5538"), Vector3(s * 0.15, 0.27, 0), 0.4)
-		_pin(torso, leg, Vector3(s * 0.15, 0.52, 0))
+	# one pristine goblin supplies every body part; each is re-parented onto a limb
+	var donor := GoblinModel.build(tunic)
+	add_child(donor)
+	donor.position = Vector3.ZERO
+	donor.force_update_transform()
+	torso = _part(Vector3(0.38, 0.55, 0.26), Vector3(0, 0.95, 0), 1.4)
+	var head := _part(Vector3(0.2, 0, 0), Vector3(0, 1.4, 0.03), 0.7, true)
+	_pin(torso, head, Vector3(0, 1.2, 0.0))
+	var rig := GoblinModel.rig_of(donor)
+	# torso carries chest, belt, satchel; head carries head + ears + cap
+	for nm in ["Spine", "Satchel"]:
+		var j := rig[nm] as Node3D
+		j.reparent(torso, true)
+	(rig["Head"] as Node3D).reparent(head, true)
+	var limbs := [["ThighL", Vector3(0.095, 0.7, 0)], ["ThighR", Vector3(-0.095, 0.7, 0)], ["UpperArmL", Vector3(0.24, 1.22, 0)], ["UpperArmR", Vector3(-0.24, 1.22, 0)]]
+	for l in limbs:
+		var jn := rig[l[0]] as Node3D
+		var is_leg: bool = str(l[0]).begins_with("Thigh")
+		var rb := _part(Vector3(0.14, 0.62, 0.16) if is_leg else Vector3(0.1, 0.52, 0.12), (l[1] as Vector3) + Vector3(0, -0.28 if is_leg else -0.22, 0), 0.4)
+		_pin(torso, rb, l[1])
+		jn.reparent(rb, true)
+	donor.queue_free()
 	for p in parts:
 		p.apply_central_impulse(impulse * p.mass * 0.35)
 		p.apply_torque_impulse(Vector3(randf_range(-1, 1), randf_range(-1, 1), randf_range(-1, 1)) * p.mass * 1.4)

@@ -27,8 +27,9 @@ func _ready() -> void:
 	s.radius = 0.12
 	cs.shape = s
 	add_child(cs)
-	Style.cyl(self, 0.07, 0.07, 0.2, Color("#3e9c5a"), Vector3.ZERO, Vector3.ZERO, 6, 0.1)
-	Style.cyl(self, 0.03, 0.05, 0.12, Color("#3e9c5a"), Vector3(0, 0.15, 0), Vector3.ZERO, 6, 0.1)
+	var bmesh := Structures.bottle(Color("#3e9c5a"))
+	bmesh.position = Vector3(0, -0.16, 0)
+	add_child(bmesh)
 	body_entered.connect(func(_b): _pop())
 	Sfx.play("whoosh", -6.0, 1.4)
 

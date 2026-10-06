@@ -177,7 +177,7 @@ func _physics_process(delta: float) -> void:
 	GoblinModel.animate(model, speed01, _anim_t, carried != null)
 	if _kick_anim > 0.0:
 		_kick_anim -= delta
-		(model.get_node("LegR") as Node3D).rotation.x = -1.7 * (_kick_anim / 0.25)
+		GoblinModel.pose_kick(model, clampf(_kick_anim / 0.25, 0.0, 1.0))
 
 	if not locked:
 		_actions(delta)
@@ -284,7 +284,7 @@ func grab(p: Parcel) -> void:
 	p.held()
 	if p.get_parent() != null:
 		p.get_parent().remove_child(p)
-	(model.get_node("Body/Back") as Node3D).add_child(p)
+	GoblinModel.back_mount(model).add_child(p)
 	p.position = Vector3(0, -0.05, -0.15)
 	p.rotation = Vector3.ZERO
 	p.scale = Vector3.ONE * 0.95

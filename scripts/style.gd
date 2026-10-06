@@ -8,29 +8,16 @@ static var _cache: Dictionary = {}
 
 
 static func shader() -> Shader:
-	if _shader == null:
-		_shader = load("res://shaders/stylized.gdshader")
-	return _shader
+	return Paint.shader()
 
 
-static func mat(color: Color, rim := 0.5, emit := 0.0, flat := true) -> ShaderMaterial:
-	var key := "%s|%s|%s|%s" % [color.to_html(), rim, emit, flat]
-	if _cache.has(key):
-		return _cache[key]
-	var m := make_mat(color, rim, emit, flat)
-	_cache[key] = m
-	return m
+static func mat(color: Color, rim := 0.5, emit := 0.0, flat := false) -> ShaderMaterial:
+	return Paint.get_mat("plain", color, {"rim": rim * 0.6, "emission_strength": emit, "flat_amount": 1.0 if flat else 0.0})
 
 
 ## Un-cached material, for things that animate (glowing parcels, lanterns).
-static func make_mat(color: Color, rim := 0.5, emit := 0.0, flat := true) -> ShaderMaterial:
-	var m := ShaderMaterial.new()
-	m.shader = shader()
-	m.set_shader_parameter("albedo", color)
-	m.set_shader_parameter("rim_amount", rim)
-	m.set_shader_parameter("emission_strength", emit)
-	m.set_shader_parameter("flat_shade", 1.0 if flat else 0.0)
-	return m
+static func make_mat(color: Color, rim := 0.5, emit := 0.0, flat := false) -> ShaderMaterial:
+	return Paint.make("plain", color, {"rim": rim * 0.6, "emission_strength": emit, "flat_amount": 1.0 if flat else 0.0})
 
 
 static func _place(mi: MeshInstance3D, parent: Node, pos: Vector3, rot: Vector3) -> MeshInstance3D:
@@ -42,11 +29,9 @@ static func _place(mi: MeshInstance3D, parent: Node, pos: Vector3, rot: Vector3)
 
 
 static func box(parent: Node, size: Vector3, color: Color, pos := Vector3.ZERO, rot := Vector3.ZERO, emit := 0.0) -> MeshInstance3D:
-	var m := BoxMesh.new()
-	m.size = size
 	var mi := MeshInstance3D.new()
-	mi.mesh = m
-	mi.material_override = mat(color, 0.5, emit)
+	mi.mesh = MeshKit.rbox(size, clampf(minf(size.x, minf(size.y, size.z)) * 0.16, 0.012, 0.07))
+	mi.material_override = Paint.get_mat("wood", color, {"emission_strength": emit})
 	return _place(mi, parent, pos, rot)
 
 

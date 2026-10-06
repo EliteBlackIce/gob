@@ -139,19 +139,109 @@ func _box(color: Color, border := INK, bw := 3, radius := 8, pad := 14) -> Style
 	return sb
 
 
+static var _parch_tex: ImageTexture
+static var _wood_tex: ImageTexture
+
+
+## Hand-painted parchment: warm paper, fibre noise, darkened burnt edges, an inked double border.
+static func parchment_texture() -> ImageTexture:
+	if _parch_tex != null:
+		return _parch_tex
+	var n := 192
+	var img := Image.create(n, n, false, Image.FORMAT_RGBA8)
+	var nz := FastNoiseLite.new()
+	nz.seed = 4
+	nz.frequency = 0.045
+	nz.fractal_octaves = 4
+	var fine := FastNoiseLite.new()
+	fine.seed = 9
+	fine.frequency = 0.5
+	for y in n:
+		for x in n:
+			var d := minf(minf(x, n - 1 - x), minf(y, n - 1 - y))
+			var t := nz.get_noise_2d(x, y) * 0.5 + 0.5
+			var f := fine.get_noise_2d(x, y) * 0.5 + 0.5
+			var c := Color("#ecd9a6").lerp(Color("#d9be84"), t * 0.8)
+			c = c.lerp(Color("#caa86a"), f * 0.18)
+			var burn := 1.0 - clampf(d / 26.0, 0.0, 1.0)
+			c = c.lerp(Color("#8a5a2a"), burn * burn * 0.65)
+			if d >= 9 and d <= 10:
+				c = Color("#3a2410")
+			elif d >= 13 and d <= 13.6:
+				c = Color("#6a4420")
+			elif d < 5:
+				c = Color("#3a2410").lerp(c, d / 5.0)
+			img.set_pixel(x, y, c)
+	_parch_tex = ImageTexture.create_from_image(img)
+	return _parch_tex
+
+
+static func wood_texture() -> ImageTexture:
+	if _wood_tex != null:
+		return _wood_tex
+	var n := 96
+	var img := Image.create(n, n, false, Image.FORMAT_RGBA8)
+	var nz := FastNoiseLite.new()
+	nz.seed = 6
+	nz.frequency = 0.03
+	var g := FastNoiseLite.new()
+	g.seed = 2
+	g.frequency = 0.9
+	for y in n:
+		for x in n:
+			var d := minf(minf(x, n - 1 - x), minf(y, n - 1 - y))
+			var grain := g.get_noise_2d(x * 0.12, y * 1.4) * 0.5 + 0.5
+			var t := nz.get_noise_2d(x, y) * 0.5 + 0.5
+			var c := Color("#7a5434").lerp(Color("#9a6c42"), grain * 0.7 + t * 0.3)
+			var hi := clampf(1.0 - d / 6.0, 0.0, 1.0)
+			c = c.lerp(Color("#c0925c"), hi * 0.5 if y < n / 2 else 0.0)
+			c = c.lerp(Color("#2a1a0d"), clampf(1.0 - d / 3.0, 0.0, 1.0))
+			img.set_pixel(x, y, c)
+	_wood_tex = ImageTexture.create_from_image(img)
+	return _wood_tex
+
+
 func _make_theme() -> Theme:
 	var th := Theme.new()
 	th.default_font_size = 20
-	th.set_stylebox("normal", "Button", _box(WOOD.lightened(0.1)))
-	th.set_stylebox("hover", "Button", _box(WOOD.lightened(0.3), GOLD))
-	th.set_stylebox("pressed", "Button", _box(WOOD.darkened(0.1), GOLD))
+	var wsb := StyleBoxTexture.new()
+	wsb.texture = wood_texture()
+	wsb.texture_margin_left = 6
+	wsb.texture_margin_right = 6
+	wsb.texture_margin_top = 6
+	wsb.texture_margin_bottom = 6
+	wsb.content_margin_left = 16
+	wsb.content_margin_right = 16
+	wsb.content_margin_top = 9
+	wsb.content_margin_bottom = 9
+	var wsb_h := wsb.duplicate() as StyleBoxTexture
+	wsb_h.modulate_color = Color(1.25, 1.18, 1.0)
+	var wsb_p := wsb.duplicate() as StyleBoxTexture
+	wsb_p.modulate_color = Color(0.8, 0.75, 0.7)
+	th.set_stylebox("normal", "Button", wsb)
+	th.set_stylebox("hover", "Button", wsb_h)
+	th.set_stylebox("pressed", "Button", wsb_p)
 	th.set_stylebox("disabled", "Button", _box(Color("#4a3a2a"), Color("#2a1f15")))
 	th.set_stylebox("focus", "Button", _box(Color(0, 0, 0, 0), GOLD, 2))
 	th.set_color("font_color", "Button", Color("#fff3cf"))
 	th.set_color("font_hover_color", "Button", Color.WHITE)
 	th.set_color("font_disabled_color", "Button", Color("#9a8a6a"))
 	th.set_font_size("font_size", "Button", 19)
-	th.set_stylebox("panel", "PanelContainer", _box(PARCH, INK, 4, 10, 22))
+	var psb := StyleBoxTexture.new()
+	psb.texture = parchment_texture()
+	psb.texture_margin_left = 30
+	psb.texture_margin_right = 30
+	psb.texture_margin_top = 30
+	psb.texture_margin_bottom = 30
+	psb.content_margin_left = 34
+	psb.content_margin_right = 34
+	psb.content_margin_top = 28
+	psb.content_margin_bottom = 28
+	psb.expand_margin_left = 6
+	psb.expand_margin_right = 6
+	psb.expand_margin_top = 6
+	psb.expand_margin_bottom = 6
+	th.set_stylebox("panel", "PanelContainer", psb)
 	th.set_stylebox("fill", "ProgressBar", _box(Color("#7ed957"), Color(0, 0, 0, 0), 0, 4, 0))
 	th.set_stylebox("background", "ProgressBar", _box(Color(0.1, 0.07, 0.04, 0.8), INK, 2, 5, 0))
 	return th

@@ -83,8 +83,8 @@ func studio() -> void:
 	env.background_mode = Environment.BG_COLOR
 	env.background_color = Color("#d9e6ee")
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	env.ambient_light_color = Color("#c8d4e4")
-	env.ambient_light_energy = 0.9
+	env.ambient_light_color = Color("#9ab8de")
+	env.ambient_light_energy = 0.4
 	env.tonemap_mode = Environment.TONE_MAPPER_FILMIC
 	env.adjustment_enabled = true
 	env.adjustment_saturation = 1.2
@@ -93,7 +93,7 @@ func studio() -> void:
 	add_child(we)
 	var sun := DirectionalLight3D.new()
 	sun.light_color = Color("#fff0d0")
-	sun.light_energy = 1.7
+	sun.light_energy = 0.95
 	sun.rotation_degrees = Vector3(-48, 35, 0)
 	sun.shadow_enabled = true
 	add_child(sun)
@@ -105,7 +105,16 @@ func studio() -> void:
 	floor_body.add_child(cs)
 	floor_body.position = Vector3(0, -0.5, 0)
 	add_child(floor_body)
-	Style.cyl(self, 4.0, 4.0, 0.06, Color("#e9dcc0"), Vector3(0, -0.03, 0), Vector3.ZERO, 40)
+	var disc := MeshInstance3D.new()
+	var dm := CylinderMesh.new()
+	dm.top_radius = 4.0
+	dm.bottom_radius = 4.0
+	dm.height = 0.06
+	dm.radial_segments = 48
+	disc.mesh = dm
+	disc.material_override = Paint.get_mat("ground", Color("#d6cdb4"))
+	disc.position = Vector3(0, -0.03, 0)
+	add_child(disc)
 	cam = Camera3D.new()
 	cam.fov = 38.0
 	add_child(cam)
@@ -121,7 +130,7 @@ func studio() -> void:
 
 	# [name, factory, yaw, elev, pad(zoom: <1 = closer), optional sphere override [center, radius]]
 	var items: Array = [
-		["goblin_courier", func(): return GoblinModel.build(), 28.0, 10.0, 0.95, null],
+		["goblin_courier", func(): return GoblinModel.build(), 24.0, 8.0, 0.95, null],
 		["goblin_back", func(): return GoblinModel.build(), 200.0, 10.0, 0.95, null],
 		["goblin_running", func():
 			var g := GoblinModel.build()
@@ -142,11 +151,7 @@ func studio() -> void:
 		["parcel_wiggly_crate", func(): return Parcel.create(jobs["wiggly"]), 30.0, 16.0, 0.95, null],
 		["parcel_grandmas_vase", func(): return Parcel.create(jobs["glass"]), 30.0, 16.0, 0.95, null],
 		["parcel_ceremonial_anvil", func(): return Parcel.create(jobs["heavy"]), 30.0, 16.0, 0.95, null],
-		["throwing_bottle", func():
-			var b := Bottle.new()
-			b.freeze = true
-			b._life = 999.0
-			return b, 30.0, 16.0, 0.95, null],
+		["throwing_bottle", func(): return Structures.bottle(Color("#3e9c5a")), 30.0, 16.0, 0.95, null],
 		["palm_tree", func(): return _palm(), 25.0, 8.0, 0.8, null],
 		["rock_boulders", func(): return _rocks(), 25.0, 14.0, 0.8, null],
 		["bush_and_plants", func(): return _plants(), 25.0, 14.0, 0.8, null],
@@ -179,41 +184,33 @@ func studio() -> void:
 
 func _palm() -> Node3D:
 	var root := Node3D.new()
-	var tr := Style.cyl(root, 0.13, 0.27, 5.0, Color("#8a6a45"), Vector3(0, 2.5, 0), Vector3.ZERO, 6)
-	tr.rotation_degrees = Vector3(0, 0, 4)
-	var leaf := Island.new()._leaf_mesh()
-	for k in 7:
-		var mi := MeshInstance3D.new()
-		mi.mesh = leaf
-		mi.material_override = Style.mat(Color.WHITE if k % 2 == 0 else Color("#d8f0a8"), 0.45)
-		mi.rotation = Vector3(0, TAU * k / 7.0, 0)
-		mi.position = Vector3(0.35, 5.0, 0)
-		root.add_child(mi)
+	var mi := MeshInstance3D.new()
+	mi.mesh = Props.palm(0)
+	root.add_child(mi)
 	return root
 
 
 func _rocks() -> Node3D:
 	var root := Node3D.new()
-	for spec in [[Vector3(-1.4, 0.5, 0), 1.0, "#b3a688"], [Vector3(0.6, 0.35, 0.5), 0.7, "#948768"], [Vector3(1.8, 0.25, -0.4), 0.45, "#b3a688"]]:
-		Style.sphere(root, 1.0, Color(str(spec[2])), spec[0], Vector3(spec[1], spec[1] * 0.75, spec[1] * 1.1), 6)
+	var xs := [-2.2, 0.4, 2.6]
+	for i in 3:
+		var mi := MeshInstance3D.new()
+		mi.mesh = MeshKit.rock(1.0, 11 + i * 5, 0.75 + 0.1 * i)
+		mi.material_override = Props.rock_mat()
+		mi.position = Vector3(xs[i], 0.4, 0.0)
+		mi.scale = Vector3.ONE * (1.1 - 0.25 * i)
+		root.add_child(mi)
 	return root
 
 
 func _plants() -> Node3D:
 	var root := Node3D.new()
-	Style.sphere(root, 1.0, Color("#2f7f30"), Vector3(-1.4, 0.4, 0), Vector3(1.0, 0.7, 1.0), 7)
-	var leaf := Island.new()._leaf_mesh()
-	for k in 5:
+	var items := [[Props.big_leaf_plant(0), Vector3(-1.6, 0, 0)], [Props.red_plant(0), Vector3(0.4, 0, 0)], [Props.fern(0), Vector3(1.8, 0, 0)], [Props.grass(0), Vector3(2.9, 0, 0)], [Props.bush(0), Vector3(-3.6, 0, 0)]]
+	for it in items:
 		var mi := MeshInstance3D.new()
-		mi.mesh = leaf
-		mi.material_override = Style.mat(Color("#e0463a"), 0.5)
-		mi.rotation = Vector3(0, TAU * k / 5.0, 0)
-		mi.rotation.z = 0.25
-		mi.scale = Vector3.ONE * 0.5
-		mi.position = Vector3(0.6, 0.1, 0)
+		mi.mesh = it[0]
+		mi.position = it[1]
 		root.add_child(mi)
-	for k in 6:
-		Style.cone(root, 0.12, 0.7, Color("#6fb544"), Vector3(1.8 + (k % 3) * 0.2, 0.35, (k / 3) * 0.3 - 0.15), Vector3((k % 3) * 8 - 8, 0, (k % 2) * 10 - 5), 3)
 	return root
 
 
