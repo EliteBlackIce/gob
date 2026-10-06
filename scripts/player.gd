@@ -85,8 +85,8 @@ func setup_for_run(is_island: bool) -> void:
 	max_hp = 3 + (Game.perk_hp if is_island else 0)
 	hp = max_hp
 	bottles = 0
-	if is_island and Game.has_skill("bottle"):
-		bottles = 4 + Game.perk_bottles + (2 if Game.has_skill("heavy_bottles") else 0)
+	if is_island:
+		bottles = 3 + Game.perk_bottles + (3 if Game.has_skill("bandolier") else 0) + (2 if Game.has_skill("heavy_bottles") else 0)
 
 
 func _input(event: InputEvent) -> void:
@@ -226,7 +226,10 @@ func _actions(delta: float) -> void:
 			var d := (e as Node3D).global_position - global_position
 			var flat := Vector3(d.x, 0, d.z)
 			if flat.length() < 2.6 and d.y < 3.0 and flat.normalized().dot(fwd) > 0.25:
-				e.hit(fwd, 1.0)
+				e.hit(fwd, 2.0 if Game.has_skill("power_boot") else 1.0)
+
+	if Input.is_action_just_pressed("toss") and carried != null and island != null:
+		carried.toss(self)
 
 	if Input.is_action_pressed("slap") and carried != null and Game.has_skill("slap"):
 		_slap_hold += delta

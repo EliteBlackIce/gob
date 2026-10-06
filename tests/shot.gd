@@ -14,7 +14,10 @@ func _ready() -> void:
 	add_child(_ui)
 	_ui.fade_to(0.0, 0.01)
 	var game := Game
-	game.current_job = game.today_jobs[0]
+	game.hints_seen.clear()
+	game.current_job = {}
+	if not scenario.begins_with("tavern"):
+		game.current_job = game.today_jobs[0]
 	var node: Node
 	if scenario.begins_with("ui_"):
 		var t := Tavern.new()
@@ -53,7 +56,8 @@ func _ready() -> void:
 			t.player.position = Vector3(-6, 0.2, -0.5)
 			t.player.yaw = 1.1
 		else:
-			t.player.yaw = 0.0
+			t.player.yaw = 0.35
+			t.player.position = Vector3(-3.0, 0.2, 3.0)
 	else:
 		var j: Dictionary = game.today_jobs[0].duplicate()
 		var isl := Island.new()

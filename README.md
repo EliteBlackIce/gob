@@ -18,13 +18,18 @@ Everything - models, terrain, sounds, music - is generated procedurally, so the 
 | Mouse | Look (ESC releases the mouse) |
 | Space | Jump (don't, if you're carrying glass) |
 | E | Interact / stamp during an inspection |
-| Shift | Panic Dash *(skill)* |
-| LMB | Throw a bottle *(skill)* |
-| F | Dirty Kick *(skill)* |
-| Q (hold) | Parcel Slap *(skill)* |
+| LMB | Throw a bottle (everyone starts with 3) |
+| F | Kick (knocks crows out of the sky, stuns slimes) |
+| G | Toss the parcel a few metres - crows and slimes only want a *carried* parcel |
+| Shift | Panic Dash *(learned in the cellar)* |
+| Q (hold) | Parcel Slap *(learned in the cellar)* |
 | C | Open your saved clips folder |
 
 ## The loop
+
+A built-in tutorial walks you through it: gold arrows in the tavern point at your next objective
+(blue = you have skill points to spend), and short hints pop up the first time something matters
+(your parcel's quirk, crows, inspectors, the ogre, the sea, the mailbox).
 
 * **The tavern is the post office.** Browse the job board, read Grubnik's letter, buy grog from Brin, then head out the front door.
 * **Parcels have personalities.** A Screaming Cheese attracts crows, a Hot Potato (Literal) explodes unless cooled in seawater, a Wiggly Crate runs away, Grandma's Vase breaks if you jump, the Anvil slows you down.

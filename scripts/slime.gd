@@ -47,9 +47,9 @@ func stun(t: float) -> void:
 	Style.burst(get_parent(), global_position + Vector3.UP * 0.5, Color("#58c96a"), 10, 5.0, 0.12, 0.7)
 
 
-func hit(dir: Vector3, _force: float) -> void:
-	global_position += dir * 1.6
-	stun(1.6)
+func hit(dir: Vector3, force: float) -> void:
+	global_position += dir * 1.6 * force
+	stun(1.6 * force)
 
 
 func _spit() -> void:

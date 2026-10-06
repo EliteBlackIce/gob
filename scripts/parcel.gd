@@ -27,6 +27,7 @@ var _hop_t := 0.0
 var _t := 0.0
 var _dead := false
 var _grab_cd := 0.0
+var _tossing := false
 
 
 static func create(j: Dictionary) -> Parcel:
@@ -111,7 +112,8 @@ func _process(delta: float) -> void:
 		"escaped":
 			_tick_escaped(delta)
 		"loose":
-			position.y = _ground() + 0.02 if island != null and get_parent() == island else position.y
+			if not _tossing and island != null and get_parent() == island:
+				position.y = _ground() + 0.02
 	if _mouth != null:
 		_mouth.scale.y = lerpf(_mouth.scale.y, 1.0, delta * 6.0)
 		_mouth.scale.x = lerpf(_mouth.scale.x, 1.0, delta * 6.0)
@@ -275,6 +277,32 @@ func status_text() -> String:
 		"heavy":
 			return "HEAVY"
 	return ""
+
+
+## G: lob the parcel a few metres. Dodges crows and slimes (they only want a
+## *carried* parcel) -- but you have to go and pick it back up.
+func toss(by: Player) -> void:
+	if state != "carried" or island == null or _tossing:
+		return
+	var from := global_position
+	var to: Vector3 = by.global_position + by.model.global_basis.z * 3.6
+	to.y = float(island.height_at(to.x, to.z))
+	if to.y < 0.0:
+		ui.toast("Not into the sea!", Color("#9fe6ff"))
+		return
+	by.carried = null
+	make_loose(from)
+	_tossing = true
+	_pickup.enabled = false
+	Sfx.play("whoosh", -4.0, 1.3)
+	var tw := create_tween()
+	tw.tween_method(func(t: float): global_position = from.lerp(to, t) + Vector3.UP * sin(t * PI) * 1.8, 0.0, 1.0, 0.42)
+	tw.tween_callback(func():
+		_tossing = false
+		_pickup.enabled = true
+		Sfx.play("thud", -6.0, 1.2)
+		if trait_id == "glass":
+			damage(14.0, "tossed like a beanbag"))
 
 
 ## Drops the parcel in the world where anybody (you, a crow) can pick it up.

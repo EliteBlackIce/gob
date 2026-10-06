@@ -23,6 +23,7 @@ func _ready() -> void:
 	ui = UI.new()
 	add_child(ui)
 	await frames(2)
+	await test_basics()
 	await test_tavern()
 	await test_traits()
 	await test_crow()
@@ -53,6 +54,81 @@ func job_with(trait_id: String, dest := "marl") -> Dictionary:
 			d["time"] = 200.0
 			return d
 	return {}
+
+
+func test_basics() -> void:
+	print("starter kit, toss, tells, hints")
+	Game.reset_save()
+	Game.owned.clear()
+	var isl := make_island(job_with("screamer"))
+	await frames(20)
+	var p: Player = isl.player
+	check(p.bottles == 3, "new goblin starts with 3 bottles (%d)" % p.bottles)
+	check(Game.has_skill("kick") and Game.has_skill("bottle"), "bottle + kick are free")
+	check(not Game.has_skill("dash"), "dash still has to be learned")
+	# kick stuns a slime without any skills
+	var s := Slime.new()
+	s.island = isl
+	s.player = p
+	s.ui = ui
+	s.home = p.global_position + p.model.global_basis.z * 1.5
+	isl.add_child(s)
+	await frames(3)
+	s.hit(p.model.global_basis.z, 1.0)
+	check(s.state == Slime.S.STUNNED, "base kick stuns a slime")
+	s.queue_free()
+	# toss
+	var parcel: Parcel = p.carried
+	parcel.toss(p)
+	check(p.carried == null and parcel.state == "loose", "G tosses the parcel out of your hands")
+	await frames(40)
+	check(parcel._pickup.enabled and not parcel._tossing, "tossed parcel lands and can be picked up")
+	p.global_position = parcel.global_position + Vector3(0.4, 0.2, 0)
+	await frames(3)
+	parcel._on_pickup(p)
+	check(p.carried == parcel, "player re-grabs the tossed parcel")
+	# crow tell: a diving crow must pause before it dives
+	var crow := Crow.new()
+	crow.island = isl
+	crow.player = p
+	crow.ui = ui
+	crow.home = p.global_position + Vector3(0, 6, 0)
+	isl.add_child(crow)
+	await frames(2)
+	crow._begin_swoop()
+	check(crow._tell_t > 0.0 and crow._tell != null and crow._tell.visible, "crow shows a '!' tell before diving")
+	await frames(60)
+	check(not crow._tell.visible, "tell disappears when the dive begins")
+	# hints queue once
+	Game.hints_seen.erase("unit_test")
+	ui.hint("unit_test", "hello", 0.2)
+	ui.hint("unit_test", "hello again", 0.2)
+	var copies: int = ui._hint_queue.filter(func(i): return i[0] == "hello").size() + (1 if ui._hint_label.text == "hello" else 0)
+	check(copies == 1 and not ui._hint_queue.any(func(i): return i[0] == "hello again"), "hint shows once, duplicates ignored")
+	isl.queue_free()
+	await frames(3)
+	# island hints fire for a new save
+	Game.hints_seen.clear()
+	var isl2 := make_island(job_with("hot"))
+	await frames(120)
+	check(Game.hints_seen.has("run") and Game.hints_seen.has("trait_hot"), "island tutorial hints fire (%s)" % str(Game.hints_seen.keys()))
+	isl2.queue_free()
+	await frames(3)
+	# tavern guide arrows
+	Game.hints_seen.clear()
+	Game.current_job = {}
+	var t := Tavern.new()
+	t.ui = ui
+	add_child(t)
+	await frames(120)
+	check(t._mk_main.visible, "tavern objective arrow is visible")
+	check(Game.hints_seen.has("t_board"), "tavern tutorial says go to the job board")
+	Game.current_job = Game.today_jobs[0]
+	await frames(10)
+	check(Game.hints_seen.has("t_door"), "tavern tutorial points at the door after taking a job")
+	t.queue_free()
+	Game.current_job = {}
+	await frames(3)
 
 
 func test_tavern() -> void:

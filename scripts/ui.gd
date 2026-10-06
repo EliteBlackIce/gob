@@ -38,6 +38,10 @@ var _qte: Control
 var _qte_ring: Control
 var _theme: Theme
 
+var _hint_panel: PanelContainer
+var _hint_label: Label
+var _hint_queue: Array = []
+var _hint_busy := false
 var _qte_cb: Callable
 var _qte_t := 0.0
 var _qte_total := 1.15
@@ -226,6 +230,23 @@ func _build_hud() -> void:
 	_toasts.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_hud.add_child(_toasts)
 
+	_hint_panel = PanelContainer.new()
+	_hint_panel.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
+	_hint_panel.anchor_left = 0.5
+	_hint_panel.anchor_right = 0.5
+	_hint_panel.offset_left = -330
+	_hint_panel.offset_right = 330
+	_hint_panel.offset_top = -250
+	_hint_panel.offset_bottom = -170
+	_hint_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_hint_panel.add_theme_stylebox_override("panel", _box(Color(0.1, 0.06, 0.03, 0.82), GOLD, 3, 10, 14))
+	_hint_label = _label("", 21, Color("#fff3cf"), false, _hint_panel)
+	_hint_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_hint_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_hint_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_hint_panel.visible = false
+	_hud.add_child(_hint_panel)
+
 	_crosshair = Control.new()
 	_crosshair.set_anchors_preset(Control.PRESET_CENTER)
 	_hud.add_child(_crosshair)
@@ -298,6 +319,35 @@ func _process(delta: float) -> void:
 		_qte_ring.queue_redraw()
 		if _qte_t > _qte_total + _qte_window * 0.6:
 			_finish_qte(false)
+
+
+## Tutorial tip. Each id shows once per save; tips queue up so they never overlap.
+func hint(id: String, text: String, secs := 7.0) -> void:
+	if Game.hints_seen.has(id):
+		return
+	Game.hints_seen[id] = true
+	_hint_queue.append([text, secs])
+	_pump_hints()
+
+
+func _pump_hints() -> void:
+	if _hint_busy or _hint_queue.is_empty():
+		return
+	_hint_busy = true
+	var item: Array = _hint_queue.pop_front()
+	_hint_label.text = str(item[0])
+	_hint_panel.modulate.a = 0.0
+	_hint_panel.visible = true
+	Sfx.play("blip", -6.0, 1.3)
+	var tw := create_tween().set_ignore_time_scale(true)
+	tw.tween_property(_hint_panel, "modulate:a", 1.0, 0.25)
+	tw.tween_interval(float(item[1]))
+	tw.tween_property(_hint_panel, "modulate:a", 0.0, 0.4)
+	await tw.finished
+	_hint_panel.visible = false
+	_hint_busy = false
+	Game.save_game()
+	_pump_hints()
 
 
 func toast(text: String, color := Color.WHITE) -> void:
@@ -553,7 +603,7 @@ func show_title(on_start: Callable, on_reset: Callable) -> void:
 	var vb := _open_modal(760)
 	_ink("GOBLIN DELIVERY CO.", 54, vb)
 	_ink("You are a goblin. Your boss doesn't care. The parcels are screaming.\nDeliver them anyway.", 22, vb)
-	_ink("WASD move   Mouse look   SPACE jump   E interact   SHIFT dash*   LMB bottle*   F kick*   Q slap*\n(* unlocked in the cellar skill tree)   ESC release mouse   C re-share last clip", 17, vb)
+	_ink("WASD move   Mouse look   SPACE jump   E interact   LMB throw bottle   F kick   G toss parcel\nSHIFT dash* and Q parcel-slap* are learned in the cellar   ESC release mouse   C open clips folder", 17, vb)
 	_button("Clock in", vb, func():
 		close_modal(false)
 		on_start.call())

@@ -9,8 +9,8 @@ const SKILLS := {
 	"quick_feet": {"branch": "Courier", "tier": 1, "name": "Quick Feet", "desc": "+15% run speed. Fear is a great coach."},
 	"dash": {"branch": "Courier", "tier": 2, "name": "Panic Dash", "desc": "SHIFT: burst of speed. Ruins glass parcels."},
 	"second_wind": {"branch": "Courier", "tier": 3, "name": "Second Wind", "desc": "Survive the first lethal hit each run. Barely."},
-	"bottle": {"branch": "Scrapper", "tier": 1, "name": "Bottle Toss", "desc": "LMB: throw a bottle. Stuns crows, slimes, regrets."},
-	"kick": {"branch": "Scrapper", "tier": 2, "name": "Dirty Kick", "desc": "F: boot to the shins. Knocks crows out of the sky."},
+	"bandolier": {"branch": "Scrapper", "tier": 1, "name": "Bandolier", "desc": "+3 bottles every run. Bottles are a lifestyle."},
+	"power_boot": {"branch": "Scrapper", "tier": 2, "name": "Power Boot", "desc": "Kicks hit twice as hard: slimes fly, stuns last longer."},
 	"heavy_bottles": {"branch": "Scrapper", "tier": 3, "name": "Heavy Bottles", "desc": "Bigger splash, longer stun, +2 bottles per run."},
 	"stamp": {"branch": "Fixer", "tier": 1, "name": "Stamp Mastery", "desc": "Inspection timing window +60%."},
 	"riddle": {"branch": "Fixer", "tier": 2, "name": "Paperwork Sense", "desc": "Eliminates one wrong riddle answer."},
@@ -20,6 +20,8 @@ const SKILLS := {
 	"pocket": {"branch": "Pack Rat", "tier": 3, "name": "Secret Pocket", "desc": "The first theft each run fails. Crows are offended."},
 }
 const BRANCHES := ["Courier", "Scrapper", "Fixer", "Pack Rat"]
+## Every goblin starts with these. The cellar only upgrades them.
+const BASE_SKILLS := ["bottle", "kick"]
 
 const MANDATES := [
 	{"id": "normal", "text": "No special rules today. Try not to enjoy it.", "pay": 1.0, "funeral": 1.0, "speed": 1.0, "time": 1.0, "nodash": false},
@@ -37,8 +39,8 @@ const JOBS := [
 	{"id": "anvil", "title": "Ceremonial Anvil", "trait": "heavy", "base": 75, "note": "Slows you down. The customer wants it 'to arrive gently'."},
 ]
 const DESTS := [
-	{"id": "marl", "name": "Old Marl's Hut", "mult": 1.0, "time": 170.0},
-	{"id": "light", "name": "Gull Point Lighthouse", "mult": 1.8, "time": 270.0},
+	{"id": "marl", "name": "Old Marl's Hut", "mult": 1.0, "time": 140.0},
+	{"id": "light", "name": "Gull Point Lighthouse", "mult": 1.8, "time": 210.0},
 ]
 
 const LETTERS := [
@@ -81,6 +83,7 @@ var current_job: Dictionary = {}
 var goblin_name := "Snik"
 var clips: Array = []      # captions captured this run
 var seen_intro := false
+var hints_seen: Dictionary = {}
 
 
 func _ready() -> void:
@@ -94,7 +97,7 @@ func _setup_input() -> void:
 	var map := {
 		"move_forward": [KEY_W, KEY_UP], "move_back": [KEY_S, KEY_DOWN],
 		"move_left": [KEY_A, KEY_LEFT], "move_right": [KEY_D, KEY_RIGHT],
-		"jump": [KEY_SPACE], "dash": [KEY_SHIFT], "interact": [KEY_E],
+		"jump": [KEY_SPACE], "dash": [KEY_SHIFT], "interact": [KEY_E], "toss": [KEY_G],
 		"kick": [KEY_F], "slap": [KEY_Q], "pause": [KEY_ESCAPE], "clip": [KEY_C],
 	}
 	for action in map:
@@ -111,7 +114,7 @@ func _setup_input() -> void:
 
 
 func has_skill(id: String) -> bool:
-	return owned.has(id)
+	return owned.has(id) or BASE_SKILLS.has(id)
 
 
 func can_buy(id: String) -> bool:
@@ -146,8 +149,8 @@ func new_day(advance := true) -> void:
 	today_jobs = []
 	for i in 3:
 		var j: Dictionary = pool[i].duplicate()
-		var d: Dictionary = DESTS[0] if i < 2 else DESTS[1]
-		if i == 1 and randf() < 0.4:
+		var d: Dictionary = DESTS[0] if (i < 2 or day <= 2) else DESTS[1]
+		if i == 1 and day > 2 and randf() < 0.4:
 			d = DESTS[1]
 		j["dest"] = d["id"]
 		j["dest_name"] = d["name"]
@@ -196,6 +199,7 @@ func save_game() -> void:
 	f.store_string(JSON.stringify({
 		"copper": copper, "skill_points": skill_points, "owned": owned.keys(), "day": day,
 		"deliveries": deliveries, "deaths": deaths, "shame": shame, "seen_intro": seen_intro,
+		"hints_seen": hints_seen.keys(),
 	}))
 
 
@@ -215,6 +219,9 @@ func load_game() -> void:
 	deaths = int(data.get("deaths", 0))
 	shame = data.get("shame", [])
 	seen_intro = bool(data.get("seen_intro", false))
+	hints_seen = {}
+	for h in data.get("hints_seen", []):
+		hints_seen[str(h)] = true
 	owned = {}
 	for k in data.get("owned", []):
 		owned[str(k)] = true
@@ -229,4 +236,5 @@ func reset_save() -> void:
 	deaths = 0
 	shame = []
 	seen_intro = false
+	hints_seen = {}
 	save_game()

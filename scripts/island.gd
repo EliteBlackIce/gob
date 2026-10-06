@@ -30,7 +30,18 @@ var dest_pos := Vector3.ZERO
 var _ended := false
 var _rng := RandomNumberGenerator.new()
 var _pickups: Array[Node3D] = []
-var _crow_nests := [Vector2(-34, 46), Vector2(26, -8), Vector2(-30, -42), Vector2(32, -58)]
+var _ogre: Ogre = null
+var _hint_clock := 0.0
+var _hint_started := false
+var _hint_poll := 0.0
+
+const TRAIT_HINTS := {
+	"screamer": "SCREAMING CHEESE: it shrieks every few seconds and crows hear it. Hold Q (with Parcel Slap) shushes it - or just outrun the birds.",
+	"hot": "HOT POTATO: it heats up the whole way. Wade into the shallow sea to cool it - or it explodes in your satchel!",
+	"wiggly": "WIGGLY CRATE: it WILL escape. When it wiggles, get ready - chase it down and touch it to catch it.",
+	"glass": "GRANDMA'S VASE: jumping, dashing and falling all crack it. Walk carefully!",
+	"heavy": "CEREMONIAL ANVIL: heavy, so you're slower. Plan your route around the crows.",
+}
 
 
 func _ready() -> void:
@@ -550,8 +561,7 @@ func _spawn_enemies() -> void:
 		c.player = player
 		c.ui = ui
 		c.home = _crow_homes[i]
-		var np: Vector2 = _crow_nests[i % _crow_nests.size()]
-		c.nest = Vector3(np.x, height_at(np.x, np.y), np.y)
+		c.nest = _nest_for(c.home)
 		add_child(c)
 	for sp in [Vector2(-6, 50), Vector2(-9, -2), Vector2(0, -46), Vector2(12, -64)]:
 		var s := Slime.new()
@@ -561,6 +571,7 @@ func _spawn_enemies() -> void:
 		s.home = Vector3(sp.x, height_at(sp.x, sp.y), sp.y)
 		add_child(s)
 	var ogre := Ogre.new()
+	_ogre = ogre
 	ogre.island = self
 	ogre.player = player
 	ogre.ui = ui
@@ -575,6 +586,7 @@ func _process(delta: float) -> void:
 		return
 	time_left -= delta
 	ui.set_timer(time_left)
+	_update_hints(delta)
 	if time_left < -45.0 and not player.dead:
 		_end("failed", "TOO LATE", "The customer gave up and bought from a rival goblin.\nNo pay. No refunds. No hard feelings (many hard feelings).", 0, 0)
 		return
@@ -585,15 +597,50 @@ func _process(delta: float) -> void:
 		if is_instance_valid(pk) and pk.global_position.distance_to(player.global_position) < 1.8:
 			_pickups.erase(pk)
 			pk.queue_free()
-			if Game.has_skill("bottle"):
-				player.bottles += 2
-				ui.toast("+2 bottles", Color("#9fe6b0"))
-			else:
-				ui.toast("A crate of bottles. If only you knew how to throw...", Color("#9fe6b0"))
+			player.bottles += 2
+			ui.toast("+2 bottles", Color("#9fe6b0"))
 			Sfx.play("pop")
 	for k in _keepers:
 		var kp: Node3D = _keepers[k]
 		(kp.get_node("Body/ArmR") as Node3D).rotation.z = -2.6 + sin(Time.get_ticks_msec() * 0.01) * 0.4
+
+
+## Crow nests sit a short flap away from the perch, off the main path, so a
+## theft is a quick chase and not a cross-country run.
+func _nest_for(home: Vector3) -> Vector3:
+	for k in 8:
+		var a := TAU * k / 8.0 + 0.4
+		var p := Vector2(home.x, home.z) + Vector2(cos(a), sin(a)) * 17.0
+		var h := height_at(p.x, p.y)
+		if h > 1.3 and h < 6.0 and _dist_to_route(p.x, p.y) > 7.0:
+			return Vector3(p.x, h, p.y)
+	var q := Vector2(home.x + 15.0, home.z)
+	return Vector3(q.x, maxf(height_at(q.x, q.y), 1.5), q.y)
+
+
+func _update_hints(delta: float) -> void:
+	_hint_clock += delta
+	if not _hint_started and _hint_clock > 1.2 and not ui.modal_open:
+		_hint_started = true
+		ui.hint("run", "WASD to run, mouse to look, SPACE to jump.\nFollow the gold arrow to %s and press E at the mailbox!" % job["dest_name"], 8.0)
+		ui.hint("trait_" + str(job["trait"]), str(TRAIT_HINTS.get(job["trait"], "")), 9.0)
+	_hint_poll -= delta
+	if _hint_poll > 0.0 or player == null or player.dead:
+		return
+	_hint_poll = 0.4
+	var pp := player.global_position
+	for e in get_tree().get_nodes_in_group("enemy"):
+		var d := (e as Node3D).global_position.distance_to(pp)
+		if e is Crow and d < 26.0:
+			ui.hint("crow", "CROWS steal parcels! Kick them (F) or throw a bottle (Left Click). In a pinch, toss the parcel out of reach with G.", 9.0)
+		elif e is Slime and d < 20.0:
+			ui.hint("slime", "INSPECTOR SLIME! When the gold ring shrinks onto the green zone, press E to stamp. Miss and he confiscates the parcel - bottle him to make him spit it out.", 10.0)
+	if _ogre != null and is_instance_valid(_ogre) and not _ogre.passed and _ogre.global_position.distance_to(pp) < 20.0:
+		ui.hint("ogre", "The OGRE wants a riddle answered. Walk up to the gate and press E at the bell. Wrong answers hurt. Three wrong answers are fatal.", 10.0)
+	if player.in_water:
+		ui.hint("sea", "Shallow water is fine (and cools hot parcels). Deep water drowns goblins.", 7.0)
+	if pp.distance_to(dest_pos) < 16.0:
+		ui.hint("deliver", "Press E at the red mailbox to deliver. Fast + undamaged = bonus pay and skill points!", 8.0)
 
 
 func _try_deliver(_by: Node) -> void:
@@ -610,7 +657,10 @@ func _try_deliver(_by: Node) -> void:
 		return
 	var cond := player.carried.condition
 	var late := time_left <= 0.0
+	var fast := time_left > float(job["time"]) * 0.5
 	var pay := int(round(float(job["pay"]) * (cond / 100.0) * (0.5 if late else 1.0)))
+	if fast and not late:
+		pay += int(round(pay * 0.25))
 	var pts := 1 + (1 if cond >= 90.0 else 0)
 	Game.copper += pay
 	Game.deliveries += 1
@@ -619,7 +669,8 @@ func _try_deliver(_by: Node) -> void:
 	Sfx.play("deliver")
 	if cond >= 99.0:
 		Game.moment("PERFECT DELIVERY (GOBLIN SURVIVED)")
-	var lines := "Delivered: %s\nCondition: %d%%%s\nPay: %d copper    Skill points: +%d" % [job["title"], int(cond), "   (LATE: half pay)" if late else "", pay, pts]
+	var tag := "   (LATE: half pay)" if late else ("   (SPEEDY: +25%)" if fast else "")
+	var lines := "Delivered: %s\nCondition: %d%%%s\nPay: %d copper    Skill points: +%d" % [job["title"], int(cond), tag, pay, pts]
 	_end("delivered", "DELIVERED!", lines, pay, pts)
 
 

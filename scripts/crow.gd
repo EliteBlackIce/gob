@@ -17,6 +17,8 @@ var _peck_cd := 0.0
 var _caw_t := 0.0
 var _leave_t := 0.0
 var _body: Node3D
+var _tell_t := 0.0
+var _tell: Label3D
 
 
 func _ready() -> void:
@@ -42,11 +44,22 @@ func _ready() -> void:
 	rotation.y = randf() * TAU
 
 
+func _begin_swoop() -> void:
+	if state == S.SWOOP:
+		return
+	state = S.SWOOP
+	_tell_t = 0.55
+	if _tell == null:
+		_tell = Style.label3d(self, "!", Vector3(0, 0.9, 0), 0.03, Color("#ff5a4a"))
+	_tell.visible = true
+	Sfx.play("caw", -3.0)
+
+
 func hear(pos: Vector3, radius: float) -> void:
 	if state != S.PERCH or player == null or player.dead:
 		return
 	if global_position.distance_to(pos) < radius and player.carried != null:
-		state = S.SWOOP
+		_begin_swoop()
 		Sfx.play("caw", -4.0)
 
 
@@ -95,15 +108,14 @@ func _physics_process(delta: float) -> void:
 			global_position = home + Vector3(0, sin(_t * 2.0) * 0.02, 0)
 			var d := global_position.distance_to(player.global_position)
 			if not player.dead and ((player.carried != null and d < 17.0) or d < 8.0):
-				state = S.SWOOP
-				Sfx.play("caw", -3.0)
+				_begin_swoop()
 		S.SWOOP:
 			_swoop(delta)
 		S.FLEE:
 			var goal := nest + Vector3(0, 0.6, 0)
 			var flat := Vector2(goal.x - global_position.x, goal.z - global_position.z)
 			var tgt := goal if flat.length() < 6.0 else Vector3(goal.x, maxf(goal.y, ground(global_position) + 5.0), goal.z)
-			_fly_to(tgt, 8.8, delta)
+			_fly_to(tgt, 6.6, delta)
 			if global_position.distance_to(goal) < 1.2:
 				state = S.EAT
 				_caw_t = 1.0
@@ -115,7 +127,7 @@ func _physics_process(delta: float) -> void:
 				_caw_t = 1.6
 				Sfx.play("caw", -8.0, 0.9)
 			if parcel != null and is_instance_valid(parcel):
-				parcel.damage(4.0 * delta, "eaten by a crow")
+				parcel.damage(3.0 * delta, "eaten by a crow")
 			else:
 				state = S.LEAVE
 		S.STUNNED:
@@ -135,7 +147,7 @@ func _physics_process(delta: float) -> void:
 			_fly_to(tgt, 9.0, delta)
 			if _cooldown <= 0.0 and parcel == null and _leave_t > 2.5 and player.carried != null \
 					and global_position.distance_to(player.global_position) < 24.0 and not player.dead:
-				state = S.SWOOP
+				_begin_swoop()
 			if _leave_t > 9.0:
 				queue_free()
 
@@ -150,6 +162,12 @@ func _fly_to(target: Vector3, speed: float, delta: float) -> void:
 func _swoop(delta: float) -> void:
 	if player.dead:
 		state = S.LEAVE
+		return
+	if _tell_t > 0.0:
+		_tell_t -= delta
+		face(player.global_position - global_position, delta, 12.0)
+		if _tell_t <= 0.0 and _tell != null:
+			_tell.visible = false
 		return
 	var tgt := player.global_position + Vector3(0, 1.0, 0)
 	_fly_to(tgt, 9.6, delta)

@@ -10,6 +10,9 @@ var _fire_light: OmniLight3D
 var _flames: Array[Node3D] = []
 var _t := 0.0
 var _shame_labels: Label3D
+var _mk_main: Node3D
+var _mk_cellar: Node3D
+var _intro_hint := false
 
 
 func _ready() -> void:
@@ -20,6 +23,8 @@ func _ready() -> void:
 	_build_board_and_boss()
 	_build_decor()
 	_spawn_player()
+	_mk_main = _make_marker(Color("#ffd24a"))
+	_mk_cellar = _make_marker(Color("#7fd8ff"))
 	ui.configure_hud(false)
 	ui.hud_player = player
 	ui.show_hud(true)
@@ -179,7 +184,7 @@ func _build_board_and_boss() -> void:
 	# wall of shame (left wall, front half)
 	Style.box(self, Vector3(0.2, 3.4, 5.2), Color("#2a2030"), Vector3(-10.9, 2.7, 4.6))
 	Style.label3d(self, "WALL OF SHAME", Vector3(-10.7, 4.8, 4.6), 0.02, Color("#d8a0a0"), Vector3(0, 90, 0))
-	_shame_labels = Style.label3d(self, "", Vector3(-10.7, 2.9, 4.6), 0.008, Color("#e8d8d8"), Vector3(0, 90, 0))
+	_shame_labels = Style.label3d(self, "", Vector3(-10.7, 2.9, 4.6), 0.0055, Color("#e8d8d8"), Vector3(0, 90, 0))
 	_shame_labels.line_spacing = 6
 	_refresh_shame()
 	Interactable.make(self, Vector3(-9.4, 1.0, 4.6), "Pay respects", Callable(self, "_respects"), 3.2)
@@ -240,8 +245,38 @@ func _spawn_player() -> void:
 	player.yaw = 0.0
 
 
+func _make_marker(color: Color) -> Node3D:
+	var n := Node3D.new()
+	add_child(n)
+	Style.cyl(n, 0.0, 0.2, 0.42, color, Vector3.ZERO, Vector3(180, 0, 0), 4, 0.7)
+	Style.light(n, color, 0.5, 3.5, Vector3(0, -0.5, 0))
+	return n
+
+
+## Gold arrow = your next objective; blue arrow = you have skill points to spend.
+func _update_guide() -> void:
+	var has_job := not Game.current_job.is_empty()
+	var target := Vector3(0, 4.5, 7.2) if has_job else Vector3(-9.4, 4.4, -1.0)
+	_mk_main.position = target + Vector3(0, sin(_t * 3.0) * 0.2, 0)
+	_mk_main.rotation.y = _t * 1.5
+	_mk_main.visible = not ui.modal_open
+	_mk_cellar.visible = Game.skill_points > 0 and not ui.modal_open
+	_mk_cellar.position = Vector3(-5.0, 2.0 + sin(_t * 3.0 + 1.0) * 0.2, 3.2)
+	_mk_cellar.rotation.y = -_t * 1.5
+	if ui.modal_open:
+		return
+	if not _intro_hint and _t > 1.0:
+		_intro_hint = true
+		ui.hint("t_board", "Step 1: walk to the JOB BOARD on the left wall (follow the gold arrow) and press E to pick a parcel.", 8.0)
+	if has_job:
+		ui.hint("t_door", "Parcel taken! Now head out the FRONT DOOR (the gold arrow) to start the delivery.", 8.0)
+	if Game.skill_points > 0 and Game.deliveries + Game.deaths >= 1:
+		ui.hint("t_cellar", "You have a skill point! Climb down the CELLAR hatch (blue arrow) to learn a new trick.", 8.0)
+
+
 func _process(delta: float) -> void:
 	_t += delta
+	_update_guide()
 	if _fire_light != null:
 		_fire_light.light_energy = 3.0 + sin(_t * 13.0) * 0.4 + sin(_t * 7.3) * 0.3
 	for i in _flames.size():
@@ -310,7 +345,7 @@ func _bar_menu(_by: Node) -> void:
 				Sfx.play("coin")
 				ui.close_modal()
 				ui.toast("Liquid courage acquired. (+1 HP next run)", Color("#ffd89a"))},
-		{"label": "Crate of Bottles  -  20 copper", "desc": "+3 throwing bottles next run. Requires the Bottle Toss skill. Brin won't judge.", "enabled": can_crate,
+		{"label": "Crate of Bottles  -  20 copper", "desc": "+3 throwing bottles next run. Brin won't judge.", "enabled": can_crate,
 			"cb": func():
 				Game.copper -= 20
 				Game.perk_bottles += 3
