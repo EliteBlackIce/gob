@@ -5,17 +5,13 @@ extends Node3D
 
 signal finished(result: Dictionary)
 
-const HX := 72.0
-const HZ := 96.0
-const STEP := 1.5
-const ROUTE: Array[Vector2] = [
-	Vector2(0, 84), Vector2(0, 62), Vector2(-2, 42), Vector2(-4, 28), Vector2(-4, 6),
-	Vector2(-12, -12), Vector2(-10, -30), Vector2(-2, -50), Vector2(10, -66), Vector2(16, -76),
-]
-const GORGE_X := -4.0
+const HX := VoxTerrain.HX
+const HZ := VoxTerrain.HZ
+const ROUTE: Array[Vector2] = VoxTerrain.ROUTE
+const GORGE_X := VoxTerrain.GORGE_X
 const OGRE_POS := Vector2(-4, 18)
-const HUT_POS := Vector2(-10, -30)
-const LIGHT_POS := Vector2(18, -78)
+const HUT_POS := VoxTerrain.HUT_POS
+const LIGHT_POS := VoxTerrain.LIGHT_POS
 const TAVERN_POS := Vector2(0, 86)
 const SPAWN := Vector2(0, 72)
 
@@ -23,7 +19,6 @@ var ui: UI
 var job: Dictionary = {}
 var player: Player
 var parcel: Parcel
-var noise := FastNoiseLite.new()
 var time_left := 180.0
 var dest_pos := Vector3.ZERO
 
@@ -46,15 +41,12 @@ const TRAIT_HINTS := {
 
 func _ready() -> void:
 	_rng.seed = 7714
-	noise.seed = 21
-	noise.frequency = 0.02
-	noise.fractal_octaves = 3
 	time_left = float(job["time"])
-	Structures.allow_moss = true
+	VoxTerrain.ensure()
 	Atmos.day(self)
 	IslandArt.build_clouds(self)
-	var tdata := IslandArt.build_terrain(self)
-	IslandArt.build_water(self, tdata)
+	VoxTerrain.build_into(self)
+	IslandArt.build_water(self)
 	_crow_homes = IslandArt.scatter(self)
 	_fix_crow_homes()
 	IslandArt.build_tavern(self)
@@ -73,37 +65,14 @@ func _ready() -> void:
 	Game.clips.clear()
 
 
-# ---------- height field ----------
+# ---------- height field (blocks) ----------
 
 func _dist_to_route(x: float, z: float) -> float:
-	var best := 1e9
-	var p := Vector2(x, z)
-	for i in ROUTE.size() - 1:
-		var a := ROUTE[i]
-		var b := ROUTE[i + 1]
-		var ab := b - a
-		var t := clampf((p - a).dot(ab) / ab.length_squared(), 0.0, 1.0)
-		best = minf(best, p.distance_to(a + ab * t))
-	return best
+	return VoxTerrain.dist_to_route(x, z)
 
 
 func height_at(x: float, z: float) -> float:
-	var n := noise.get_noise_2d(x, z)
-	var r := sqrt(pow(x / 62.0, 2.0) + pow(z / 88.0, 2.0))
-	var mask := 1.0 - Style.smooth(0.7, 1.03, r)
-	var base := 2.6 + n * 6.5
-	var h := lerpf(-5.0, base, mask)
-	var f := 1.0 - Style.smooth(3.5, 12.0, _dist_to_route(x, z))
-	h = lerpf(h, 1.5 + n * 0.5, f * 0.92)
-	var plaza := 1.0 - Style.smooth(14.0, 24.0, Vector2(x, z).distance_to(Vector2(0, 80)))
-	h = lerpf(h, 2.0, plaza)
-	for c in [HUT_POS, LIGHT_POS]:
-		var fd := 1.0 - Style.smooth(7.0, 14.0, Vector2(x, z).distance_to(c))
-		h = lerpf(h, 2.0, fd)
-	var gz := Style.smooth(2.0, 9.0, z) * (1.0 - Style.smooth(30.0, 37.0, z))
-	var wall := Style.smooth(4.6, 7.8, absf(x - GORGE_X)) * gz
-	h += wall * (9.5 + n * 3.0)
-	return h
+	return VoxTerrain.height_at(x, z)
 
 
 var _crow_homes: Array[Vector3] = []
@@ -132,8 +101,12 @@ func _fix_crow_homes() -> void:
 
 
 func _perch_post(p: Vector3) -> void:
-	Style.cyl(self, 0.18, 0.26, 4.4, Color("#7a5a38"), p + Vector3(0, 2.2, 0), Vector3(3, 0, -2), 6)
-	Style.box(self, Vector3(1.5, 0.12, 0.2), Color("#6a4a2d"), p + Vector3(0, 4.0, 0), Vector3(0, 30, 0))
+	var v := Vox.new(0.12)
+	v.box(0, 0, 0, 3, 34, 3, VoxProps.WOOD_BROWN, 0.07)
+	v.box(-6, 34, 0, 9, 36, 3, VoxProps.WOOD_DARK, 0.06)
+	var mi := VoxProps.mesh_instance(v.build(Vector3(1.5, 0, 1.5)), 0.12)
+	mi.position = p
+	add_child(mi)
 
 
 func _build_pickups() -> void:

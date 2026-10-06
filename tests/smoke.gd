@@ -23,6 +23,7 @@ func _ready() -> void:
 	ui = UI.new()
 	add_child(ui)
 	await frames(2)
+	await test_voxel()
 	await test_basics()
 	await test_tavern()
 	await test_traits()
@@ -54,6 +55,46 @@ func job_with(trait_id: String, dest := "marl") -> Dictionary:
 			d["time"] = 200.0
 			return d
 	return {}
+
+
+func test_voxel() -> void:
+	print("voxel world + first person")
+	var v := Vox.new(1.0)
+	v.box(0, 0, 0, 2, 2, 2, Color.WHITE, 0.0)
+	var m := v.build()
+	check(m.surface_get_array_len(0) == 144, "2x2x2 voxel cube meshes to its 24 outer quads (%d verts)" % m.surface_get_array_len(0))
+	var v2 := Vox.new(1.0)
+	v2.box(0, 0, 0, 1, 1, 1, Color.WHITE, 0.0)
+	v2.box(1, 0, 0, 2, 1, 1, Color.WHITE, 0.0)
+	check(v2.build().surface_get_array_len(0) == 60, "touching voxels cull their shared faces")
+	var glow := Vox.new(1.0)
+	glow.set_v(0, 0, 0, Color(1, 0.5, 0.1, 0.2))
+	var carr: PackedColorArray = glow.build().surface_get_arrays(0)[Mesh.ARRAY_COLOR]
+	check(absf(carr[0].a - 0.2) < 0.001, "colour alpha (emission mask) survives meshing")
+	VoxTerrain.ensure()
+	check(VoxTerrain.height_at(-300.0, 0.0) == -5.0, "far outside the island is open sea")
+	var hh := VoxTerrain.height_at(0.0, 86.0)
+	check(absf(hh - 2.0) < 0.76, "the tavern plaza sits at about 2 m (%.2f)" % hh)
+	check(absf(fmod(hh * 2.0, 1.0)) < 0.001, "terrain heights are whole half-metre blocks")
+	check(VoxTerrain.height_at(-4.0, 20.0) > 5.0 or VoxTerrain.height_at(-12.0, 20.0) > 5.0, "the gorge has tall walls")
+	var isl := make_island(job_with("screamer"))
+	await frames(20)
+	var p: Player = isl.player
+	check(p.cam != null and p.view != null, "player has a camera and first-person hands")
+	check(p.cam.cull_mask & 2 == 0, "the body is hidden from the first-person camera")
+	check(p.carried != null and p.carried.get_parent() == p.view.hold, "the carried parcel sits in your hands")
+	check(absf(p.cam.global_position.y - p.global_position.y - Player.EYE_HEIGHT) < 0.2, "eyes are at head height")
+	var yaw0 := p.yaw
+	p._input(_mouse_motion(40.0))
+	check(p.yaw != yaw0 or Input.mouse_mode != Input.MOUSE_MODE_CAPTURED, "mouse look is wired up")
+	isl.queue_free()
+	await frames(3)
+
+
+func _mouse_motion(dx: float) -> InputEventMouseMotion:
+	var e := InputEventMouseMotion.new()
+	e.relative = Vector2(dx, 0.0)
+	return e
 
 
 func test_basics() -> void:

@@ -1,15 +1,16 @@
 class_name Player
 extends CharacterBody3D
-## The goblin. Fast enough to flee, fragile enough to make it interesting.
+## The goblin, in first person. Fast enough to flee, fragile enough to make it interesting.
 
 signal died(cause: String)
 
 const GRAVITY := 24.0
-const MOUSE_SENS := 0.0035
+const MOUSE_SENS := 0.0028
+const EYE_HEIGHT := 1.36
 
 var island: Node = null           # set on the island: height queries, water, enemies
 var ui: UI
-var cam_dist := 5.4
+var cam_dist := 0.0               # third-person distance (only used for the death cam / tests)
 var hp := 3
 var max_hp := 3
 var frozen := false               # scripted freeze (inspections)
@@ -24,13 +25,15 @@ var speed01 := 0.0
 var shake := 0.0
 var invuln := 0.0
 
-var model: Node3D
+var model: Node3D                 # full body: only its shadow is seen in first person
 var rig: Node3D
 var arm: SpringArm3D
 var cam: Camera3D
+var view: Viewmodel
+var motes: CPUParticles3D
 var cam_override: Node3D = null
 var yaw := 0.0
-var pitch := -0.32
+var pitch := 0.0
 var interact_target: Interactable = null
 
 var _anim_t := 0.0
@@ -46,6 +49,8 @@ var _prev_vy := 0.0
 var _was_in_water := false
 var _kick_anim := 0.0
 var _step_t := 0.0
+var _fov_kick := 0.0
+var _bob_t := 0.0
 
 
 func _ready() -> void:
@@ -56,29 +61,35 @@ func _ready() -> void:
 	var cs := CollisionShape3D.new()
 	var cap := CapsuleShape3D.new()
 	cap.radius = 0.34
-	cap.height = 1.35
+	cap.height = 1.45
 	cs.shape = cap
-	cs.position = Vector3(0, 0.68, 0)
+	cs.position = Vector3(0, 0.73, 0)
 	add_child(cs)
 	model = GoblinModel.build()
 	add_child(model)
+	for mi in model.find_children("*", "MeshInstance3D", true, false):
+		(mi as MeshInstance3D).layers = 2          # invisible to the first-person camera, still casts shadows
 
 	rig = Node3D.new()
 	rig.top_level = true
 	add_child(rig)
 	arm = SpringArm3D.new()
-	arm.spring_length = cam_dist
+	arm.spring_length = 0.0
 	arm.collision_mask = 1
-	arm.margin = 0.25
+	arm.margin = 0.2
 	rig.add_child(arm)
 	arm.add_excluded_object(get_rid())
 	cam = Camera3D.new()
-	cam.fov = 68.0
-	cam.near = 0.1
-	cam.far = 400.0
+	cam.fov = 80.0
+	cam.near = 0.05
+	cam.far = 500.0
+	cam.cull_mask = 0xFFFFF & ~2
 	arm.add_child(cam)
 	cam.current = true
-	rig.global_position = global_position + Vector3(0, 1.3, 0)
+	view = Viewmodel.new()
+	cam.add_child(view)
+	motes = Atmos.motes(cam)
+	rig.global_position = global_position + Vector3(0, EYE_HEIGHT, 0)
 	add_to_group("player")
 
 
@@ -93,11 +104,15 @@ func setup_for_run(is_island: bool) -> void:
 func _input(event: InputEvent) -> void:
 	if event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED and not _locked():
 		yaw -= event.relative.x * MOUSE_SENS
-		pitch = clampf(pitch - event.relative.y * MOUSE_SENS, -1.15, 0.35)
+		pitch = clampf(pitch - event.relative.y * MOUSE_SENS, -1.5, 1.5)
 
 
 func _locked() -> bool:
 	return frozen or dead or (ui != null and ui.modal_open)
+
+
+func _forward() -> Vector3:
+	return Vector3(-sin(yaw), 0.0, -cos(yaw))
 
 
 func _physics_process(delta: float) -> void:
@@ -144,6 +159,7 @@ func _physics_process(delta: float) -> void:
 		_dash_t = 0.2
 		_dash_cd = 1.1
 		_dash_dir = dir.normalized()
+		_fov_kick = 14.0
 		Sfx.play("whoosh", -4.0, 1.2)
 		Style.burst(get_parent(), global_position + Vector3(0, 0.1, 0), Color("#e8d8a8"), 8, 3.0, 0.14, 0.5)
 		if carried != null and carried.trait_id == "glass":
@@ -172,12 +188,12 @@ func _physics_process(delta: float) -> void:
 
 	var hspeed := Vector2(velocity.x, velocity.z).length()
 	speed01 = clampf(hspeed / 6.5, 0.0, 1.0) if is_on_floor() else 0.4
-	if hspeed > 0.5 and _launch_t <= 0.0:
-		model.rotation.y = lerp_angle(model.rotation.y, atan2(velocity.x, velocity.z), 1.0 - exp(-14.0 * delta))
+	model.rotation.y = yaw + PI
 	GoblinModel.animate(model, speed01, _anim_t, carried != null)
 	if _kick_anim > 0.0:
 		_kick_anim -= delta
 		GoblinModel.pose_kick(model, clampf(_kick_anim / 0.25, 0.0, 1.0))
+	view.set_state(speed01, carried != null, bottles > 0 and island != null, delta)
 
 	if not locked:
 		_actions(delta)
@@ -227,22 +243,24 @@ func _land(impact: float) -> void:
 
 func _actions(delta: float) -> void:
 	if Input.is_action_just_pressed("throw") and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED \
-			and island != null and Game.has_skill("bottle") and bottles > 0 and _throw_cd <= 0.0:
+			and island != null and bottles > 0 and _throw_cd <= 0.0:
 		bottles -= 1
 		_throw_cd = 0.45
+		view.play_throw()
 		var aim: Vector3 = -cam.global_basis.z
-		var v := (aim + Vector3.UP * 0.28).normalized() * 16.0
-		Bottle.throw(get_parent(), global_position + Vector3(0, 1.4, 0) + aim * 0.5, v + velocity * 0.3, Game.has_skill("heavy_bottles"))
+		var v := (aim + Vector3.UP * 0.18).normalized() * 17.0
+		Bottle.throw(get_parent(), cam.global_position + aim * 0.5 + Vector3(0.1, -0.15, 0), v + velocity * 0.3, Game.has_skill("heavy_bottles"))
 
-	if Input.is_action_just_pressed("kick") and Game.has_skill("kick") and _kick_cd <= 0.0:
+	if Input.is_action_just_pressed("kick") and _kick_cd <= 0.0:
 		_kick_cd = 0.6
 		_kick_anim = 0.25
+		view.play_kick()
 		Sfx.play("whoosh", -2.0, 1.6)
-		var fwd: Vector3 = model.global_basis.z
+		var fwd: Vector3 = _forward()
 		for e in get_tree().get_nodes_in_group("enemy"):
 			var d := (e as Node3D).global_position - global_position
 			var flat := Vector3(d.x, 0, d.z)
-			if flat.length() < 2.6 and d.y < 3.0 and flat.normalized().dot(fwd) > 0.25:
+			if flat.length() < 2.8 and d.y < 3.0 and flat.normalized().dot(fwd) > 0.25:
 				e.hit(fwd, 2.0 if Game.has_skill("power_boot") else 1.0)
 
 	if Input.is_action_just_pressed("toss") and carried != null and island != null:
@@ -252,6 +270,7 @@ func _actions(delta: float) -> void:
 		_slap_hold += delta
 		if _slap_hold >= 0.5:
 			_slap_hold = -0.5
+			view.play_slap()
 			carried.slap()
 	else:
 		_slap_hold = 0.0
@@ -263,12 +282,15 @@ func _actions(delta: float) -> void:
 func _scan_interactables() -> void:
 	var best: Interactable = null
 	var best_d := 9999.0
+	var eye := cam.global_position
+	var look: Vector3 = -cam.global_basis.z
 	for n in get_tree().get_nodes_in_group("interactable"):
 		var it := n as Interactable
 		if it == null or not it.enabled or not it.is_inside_tree():
 			continue
-		var d := it.global_position.distance_to(global_position + Vector3(0, 0.6, 0))
-		if d < it.radius and d < best_d:
+		var to := it.global_position - eye
+		var d := to.length()
+		if d < it.radius + 0.4 and d < best_d:
 			best = it
 			best_d = d
 	interact_target = best
@@ -284,10 +306,12 @@ func grab(p: Parcel) -> void:
 	p.held()
 	if p.get_parent() != null:
 		p.get_parent().remove_child(p)
-	GoblinModel.back_mount(model).add_child(p)
-	p.position = Vector3(0, -0.05, -0.15)
+	view.hold.add_child(p)
+	p.position = Vector3.ZERO
 	p.rotation = Vector3.ZERO
-	p.scale = Vector3.ONE * 0.95
+	p.scale = Vector3.ONE * 0.5
+	for mi in p.find_children("*", "MeshInstance3D", true, false):
+		(mi as MeshInstance3D).cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 
 
 func take_hit(from_dir: Vector3, force: float, dmg: int, cause: String) -> void:
@@ -325,6 +349,8 @@ func die(cause: String, impulse := Vector3.ZERO) -> void:
 	dead = true
 	hp = 0
 	model.visible = false
+	view.visible = false
+	motes.emitting = false
 	if carried != null:
 		carried.visible = false
 	for c in get_children():
@@ -332,16 +358,30 @@ func die(cause: String, impulse := Vector3.ZERO) -> void:
 			(c as CollisionShape3D).set_deferred("disabled", true)
 	var rd := Ragdoll.spawn(get_parent(), global_position, impulse + Vector3.UP * 3.0)
 	cam_override = rd.torso
+	cam.cull_mask = 0xFFFFF
+	arm.spring_length = 4.2
 	Sfx.play("hurt", 2.0, 0.7)
 	died.emit(cause)
 
 
 func _update_camera(delta: float) -> void:
-	var target := (cam_override.global_position if cam_override != null and is_instance_valid(cam_override) else global_position) + Vector3(0, 1.25, 0)
-	rig.global_position = rig.global_position.lerp(target, 1.0 - exp(-14.0 * delta))
-	rig.rotation = Vector3(pitch, yaw, 0.0)
+	if dead and cam_override != null and is_instance_valid(cam_override):
+		var tp := cam_override.global_position + Vector3(0, 0.5, 0)
+		rig.global_position = rig.global_position.lerp(tp, 1.0 - exp(-8.0 * delta))
+		rig.rotation = Vector3(-0.45, yaw, 0.0)
+		cam.fov = 70.0
+		return
+	var bob := 0.0
+	if is_on_floor():
+		_bob_t += delta * (7.0 + 6.0 * speed01)
+		bob = sin(_bob_t) * 0.035 * speed01
+	var target := global_position + Vector3(0, EYE_HEIGHT + bob, 0)
+	rig.global_position = target
 	shake = maxf(0.0, shake - delta * 1.4)
-	cam.h_offset = randf_range(-1, 1) * shake * 0.25
-	cam.v_offset = randf_range(-1, 1) * shake * 0.25
-	var want := cam_dist + (0.6 if _dash_t > 0.0 else 0.0)
-	arm.spring_length = lerpf(arm.spring_length, want, 1.0 - exp(-6.0 * delta))
+	var roll := sin(_bob_t * 0.5) * 0.012 * speed01
+	rig.rotation = Vector3(pitch, yaw, roll)
+	cam.h_offset = randf_range(-1, 1) * shake * 0.12
+	cam.v_offset = randf_range(-1, 1) * shake * 0.12
+	_fov_kick = lerpf(_fov_kick, 0.0, 1.0 - exp(-6.0 * delta))
+	cam.fov = 80.0 + 6.0 * speed01 + _fov_kick
+	arm.spring_length = lerpf(arm.spring_length, cam_dist, 1.0 - exp(-8.0 * delta))

@@ -15,7 +15,7 @@ Everything - models, terrain, textures, sounds, music - is generated procedurall
 | Key | Action |
 | --- | --- |
 | WASD | Move |
-| Mouse | Look (ESC releases the mouse) |
+| Mouse | Look around - the game is first person (ESC releases the mouse) |
 | Space | Jump (don't, if you're carrying glass) |
 | E | Interact / stamp during an inspection |
 | LMB | Throw a bottle (everyone starts with 3) |
@@ -56,21 +56,28 @@ scenes/    main.tscn
 tests/     smoke.gd, flow.gd (headless), shot.gd (screenshot tool)
 ```
 
-## Art pipeline
+## Art pipeline (voxel / blocky, Minecraft Dungeons style)
 
-The look is hand-painted-stylised (Sea of Thieves-ish): warm sun, tinted cool shadows, soft light wrap, brush-stroke
-colour variation, wood grain, chipped-paint edge wear, baked ambient occlusion, rim light and subsurface glow.
+Everything is built from coloured blocks in code - no imported models or textures:
 
 ```
-shaders/painted.gdshader   the one surface shader every object uses (+ wind sway for foliage)
-shaders/water.gdshader     depth-aware sea: turquoise shallows, lapping foam, caustics, sun glints
-scripts/gfx/mesh_kit.gd    procedural modelling: bevelled boxes, lathes, tubes, sculpt blobs, cloth, palm fronds, broad leaves, rocks
-scripts/gfx/paint.gd       material presets (wood, painted, cloth, stone, metal, skin, leaf, glass, glow)
-scripts/gfx/structures.gd  buildings & furniture: plank walls, shingle roofs, doors, windows, barrels, crates, torches, lanterns, sails, rugs
-scripts/gfx/props.gd       foliage: palms, glossy jungle leaves, red plants, ferns, grass, bushes
-scripts/gfx/atmos.gd       day / interior lighting, sky, glow, fog and grading presets
-scripts/goblin_model.gd    the postal goblin: sculpted head, jointed rig, procedural run / kick / wave animation
+shaders/voxel.gdshader       blocky surface: Lambert light, per-block colour jitter, pixel-grid texture noise, vertex alpha = glow
+shaders/voxel_alpha.gdshader translucent version (slime jelly, glass)
+shaders/water.gdshader       pixelated sea: depth-aware turquoise shallows, foam pixels, caustic sparkles, square sun glitter
+scripts/vox/vox.gd           sparse voxel model + mesher: hidden faces culled, per-corner ambient occlusion baked into vertex colours
+scripts/vox/terrain.gd       the island as half-metre block columns: height table, chunked meshes, HeightMap collider
+scripts/vox/props.gd         palms, bushes, grass, rocks, barrels, crates, torches, lanterns, parcels, furniture
+scripts/vox/creatures.gd     crow, slime (translucent cube), ogre
+scripts/vox/buildings.gd     tavern inn, hut, lighthouse, tavern interior shell
+scripts/goblin_model.gd      the goblin (reference-style: big eyes, fangs, tongue, vest, backpack) with a procedural rig
+scripts/viewmodel.gd         first-person arms, carried parcel, bottle throw, kick boot
+scripts/gfx/atmos.gd         sky, sun, fog, bloom, floating light motes; Forward+ GI (see below)
 ```
+
+**About the "ray traced" look.** Godot has no hardware ray tracing. On the **Forward+** renderer (Vulkan, the
+project default) the game turns on its closest equivalents: SDFGI (real-time bounced light), SSAO + SSIL and
+volumetric fog (sun shafts). Machines without Vulkan fall back automatically to the Compatibility renderer, where
+baked per-block ambient occlusion, hard sun shadows, bloom and fog carry the look instead.
 
 ## Asset sheets
 

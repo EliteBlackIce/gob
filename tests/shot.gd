@@ -68,6 +68,9 @@ func _ready() -> void:
 		node = isl
 		await _frames(20)
 		var p: Player = isl.player
+		if not scenario in ["island_ogre", "island_slime2"]:
+			for e in get_tree().get_nodes_in_group("enemy"):
+				e.queue_free()
 		match scenario:
 			"island_gorge":
 				p.global_position = Vector3(-4, isl.height_at(-4, 28) + 0.5, 28)
@@ -81,20 +84,18 @@ func _ready() -> void:
 				p.global_position = Vector3(-6, isl.height_at(-6, 56) + 0.5, 56)
 				p.yaw = 0.0
 			"island_start":
-				p.yaw = 0.5
-				p.pitch = -0.15
-				p.cam_dist = 7.0
-				p.arm.spring_length = 7.0
+				p.yaw = 0.0
+				p.pitch = -0.05
 			"island_ogre":
 				p.global_position = Vector3(-4, isl.height_at(-4, 24) + 0.5, 24)
 				p.yaw = 0.0
 				p.pitch = -0.12
-				p.arm.spring_length = 4.5
+				p.pitch = -0.05
 			"island_slime2":
 				p.global_position = Vector3(-6, isl.height_at(-6, 55) + 0.5, 55)
 				p.yaw = 0.0
 				p.pitch = -0.12
-				p.arm.spring_length = 5.0
+				p.pitch = -0.05
 				p.carried.visible = true
 			"island_ragdoll":
 				p.die("was yeeted", Vector3(0, 6, 14))
@@ -108,8 +109,9 @@ func _ready() -> void:
 				p.global_position = Vector3(10, isl.height_at(10, 40) + 0.5, 40)
 				p.yaw = 0.6
 				p.pitch = -0.1
-				p.arm.spring_length = 12.0
-				p.cam_dist = 12.0
+				p.cam_dist = 14.0
+				p.arm.spring_length = 14.0
+				p.cam.cull_mask = 0xFFFFF
 		await _frames(30)
 	await _frames(10)
 	await RenderingServer.frame_post_draw

@@ -3,10 +3,11 @@ extends CanvasLayer
 ## All 2D: HUD, parchment menus, skill tree, riddle panel, stamp QTE and the
 ## "clip" banner that fires when something hilarious happens.
 
-const INK := Color("#2a1a0d")
-const PARCH := Color("#ead7a4")
-const PARCH_DARK := Color("#cdb47a")
-const WOOD := Color("#6a4a2d")
+const INK := Color("#120d0a")
+const TEXT := Color("#eadfc4")
+const PARCH := Color("#1c1612")
+const PARCH_DARK := Color("#120d0a")
+const WOOD := Color("#4a4038")
 const GOLD := Color("#f3c14a")
 
 var modal_open := false
@@ -57,14 +58,25 @@ var show_compass := false
 class Hearts extends Control:
 	var hp := 3
 	var max_hp := 3
+	const PAT := ["01101100", "11111110", "11111110", "01111100", "00111000", "00010000"]
 
 	func _draw() -> void:
+		var px := 4
 		for i in max_hp:
-			var c := Vector2(20 + i * 38, 20)
-			var col := Color("#e0453a") if i < hp else Color("#4a2a2a")
-			draw_circle(c + Vector2(-6, -3), 8, col)
-			draw_circle(c + Vector2(6, -3), 8, col)
-			draw_colored_polygon(PackedVector2Array([c + Vector2(-13, 0), c + Vector2(13, 0), c + Vector2(0, 16)]), col)
+			var ox := i * 42
+			var full := i < hp
+			for r in PAT.size():
+				for c in 8:
+					if PAT[r][c] != "1":
+						continue
+					var col := Color("#e0382c") if full else Color("#3a1c1c")
+					if full and r == 0 and c in [1, 2]:
+						col = Color("#ff8a78")
+					elif full and (r == 4 or c == 6):
+						col = Color("#a82018")
+					draw_rect(Rect2(ox + c * px, r * px + 2, px, px), col)
+					if r == 0 or PAT[r - 1][c] != "1":
+						draw_rect(Rect2(ox + c * px, r * px + 2, px, 1), Color("#120d0a"))
 
 
 class Compass extends Control:
@@ -103,6 +115,7 @@ func _ready() -> void:
 	_root.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_root.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_root.theme = _theme
+	_root.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	add_child(_root)
 	_build_hud()
 	_build_banner()
@@ -126,7 +139,7 @@ func _ready() -> void:
 
 # ---------- theme helpers ----------
 
-func _box(color: Color, border := INK, bw := 3, radius := 8, pad := 14) -> StyleBoxFlat:
+func _box(color: Color, border := INK, bw := 3, radius := 0, pad := 14) -> StyleBoxFlat:
 	var sb := StyleBoxFlat.new()
 	sb.bg_color = color
 	sb.border_color = border
@@ -139,111 +152,107 @@ func _box(color: Color, border := INK, bw := 3, radius := 8, pad := 14) -> Style
 	return sb
 
 
-static var _parch_tex: ImageTexture
-static var _wood_tex: ImageTexture
+static var _panel_tex: ImageTexture
+static var _btn_tex := {}
 
 
-## Hand-painted parchment: warm paper, fibre noise, darkened burnt edges, an inked double border.
-static func parchment_texture() -> ImageTexture:
-	if _parch_tex != null:
-		return _parch_tex
-	var n := 192
+static func _stone_noise(x: int, y: int, base: Color, amt := 0.1) -> Color:
+	var f := 1.0 + (Vox.hash3(x, y, 5) - 0.5) * 2.0 * amt
+	var big := 1.0 + (Vox.hash3(x / 3, y / 3, 9) - 0.5) * amt * 1.6
+	return Color(base.r * f * big, base.g * f * big, base.b * f * big)
+
+
+## Dark stone slab with a gold inset border and studded corners.
+static func panel_texture() -> ImageTexture:
+	if _panel_tex != null:
+		return _panel_tex
+	var n := 64
 	var img := Image.create(n, n, false, Image.FORMAT_RGBA8)
-	var nz := FastNoiseLite.new()
-	nz.seed = 4
-	nz.frequency = 0.045
-	nz.fractal_octaves = 4
-	var fine := FastNoiseLite.new()
-	fine.seed = 9
-	fine.frequency = 0.5
 	for y in n:
 		for x in n:
-			var d := minf(minf(x, n - 1 - x), minf(y, n - 1 - y))
-			var t := nz.get_noise_2d(x, y) * 0.5 + 0.5
-			var f := fine.get_noise_2d(x, y) * 0.5 + 0.5
-			var c := Color("#ecd9a6").lerp(Color("#d9be84"), t * 0.8)
-			c = c.lerp(Color("#caa86a"), f * 0.18)
-			var burn := 1.0 - clampf(d / 26.0, 0.0, 1.0)
-			c = c.lerp(Color("#8a5a2a"), burn * burn * 0.65)
-			if d >= 9 and d <= 10:
-				c = Color("#3a2410")
-			elif d >= 13 and d <= 13.6:
-				c = Color("#6a4420")
-			elif d < 5:
-				c = Color("#3a2410").lerp(c, d / 5.0)
+			var d := mini(mini(x, n - 1 - x), mini(y, n - 1 - y))
+			var c := _stone_noise(x, y, Color("#241d18"), 0.12)
+			if d < 2:
+				c = Color("#0a0705")
+			elif d < 4:
+				c = Color("#e8b848")
+			elif d < 6:
+				c = Color("#6a4c20")
+			elif d < 7:
+				c = Color("#0a0705")
+			var cx := mini(x, n - 1 - x)
+			var cy := mini(y, n - 1 - y)
+			if cx < 11 and cy < 11 and cx + cy < 12 and cx + cy > 8:
+				c = Color("#f4d070") if (cx + cy) % 2 == 0 else c
 			img.set_pixel(x, y, c)
-	_parch_tex = ImageTexture.create_from_image(img)
-	return _parch_tex
+	_panel_tex = ImageTexture.create_from_image(img)
+	return _panel_tex
 
 
-static func wood_texture() -> ImageTexture:
-	if _wood_tex != null:
-		return _wood_tex
-	var n := 96
+## Chunky bevelled stone button. state: 0 normal, 1 hover, 2 pressed.
+static func button_texture(state: int) -> ImageTexture:
+	if _btn_tex.has(state):
+		return _btn_tex[state]
+	var n := 32
 	var img := Image.create(n, n, false, Image.FORMAT_RGBA8)
-	var nz := FastNoiseLite.new()
-	nz.seed = 6
-	nz.frequency = 0.03
-	var g := FastNoiseLite.new()
-	g.seed = 2
-	g.frequency = 0.9
+	var base := Color("#4e443a")
+	if state == 1:
+		base = Color("#665a4a")
+	elif state == 2:
+		base = Color("#3a322a")
 	for y in n:
 		for x in n:
-			var d := minf(minf(x, n - 1 - x), minf(y, n - 1 - y))
-			var grain := g.get_noise_2d(x * 0.12, y * 1.4) * 0.5 + 0.5
-			var t := nz.get_noise_2d(x, y) * 0.5 + 0.5
-			var c := Color("#7a5434").lerp(Color("#9a6c42"), grain * 0.7 + t * 0.3)
-			var hi := clampf(1.0 - d / 6.0, 0.0, 1.0)
-			c = c.lerp(Color("#c0925c"), hi * 0.5 if y < n / 2 else 0.0)
-			c = c.lerp(Color("#2a1a0d"), clampf(1.0 - d / 3.0, 0.0, 1.0))
+			var d := mini(mini(x, n - 1 - x), mini(y, n - 1 - y))
+			var c := _stone_noise(x, y, base, 0.1)
+			if d < 2:
+				c = Color("#f3c14a") if state == 1 else Color("#120d0a")
+			elif d < 4:
+				var top_left := (x < 4 and x <= n - 1 - y) or (y < 4 and y <= n - 1 - x)
+				if (top_left and state != 2) or (not top_left and state == 2):
+					c = c.lightened(0.3)
+				else:
+					c = c.darkened(0.32)
 			img.set_pixel(x, y, c)
-	_wood_tex = ImageTexture.create_from_image(img)
-	return _wood_tex
+	var t := ImageTexture.create_from_image(img)
+	_btn_tex[state] = t
+	return t
 
 
 func _make_theme() -> Theme:
 	var th := Theme.new()
 	th.default_font_size = 20
-	var wsb := StyleBoxTexture.new()
-	wsb.texture = wood_texture()
-	wsb.texture_margin_left = 6
-	wsb.texture_margin_right = 6
-	wsb.texture_margin_top = 6
-	wsb.texture_margin_bottom = 6
-	wsb.content_margin_left = 16
-	wsb.content_margin_right = 16
-	wsb.content_margin_top = 9
-	wsb.content_margin_bottom = 9
-	var wsb_h := wsb.duplicate() as StyleBoxTexture
-	wsb_h.modulate_color = Color(1.25, 1.18, 1.0)
-	var wsb_p := wsb.duplicate() as StyleBoxTexture
-	wsb_p.modulate_color = Color(0.8, 0.75, 0.7)
-	th.set_stylebox("normal", "Button", wsb)
-	th.set_stylebox("hover", "Button", wsb_h)
-	th.set_stylebox("pressed", "Button", wsb_p)
-	th.set_stylebox("disabled", "Button", _box(Color("#4a3a2a"), Color("#2a1f15")))
+	for st in [["normal", 0], ["hover", 1], ["pressed", 2], ["disabled", 0]]:
+		var sb := StyleBoxTexture.new()
+		sb.texture = button_texture(st[1])
+		sb.texture_margin_left = 5
+		sb.texture_margin_right = 5
+		sb.texture_margin_top = 5
+		sb.texture_margin_bottom = 5
+		sb.content_margin_left = 16
+		sb.content_margin_right = 16
+		sb.content_margin_top = 9
+		sb.content_margin_bottom = 9
+		if st[0] == "disabled":
+			sb.modulate_color = Color(0.55, 0.55, 0.55)
+		th.set_stylebox(st[0], "Button", sb)
 	th.set_stylebox("focus", "Button", _box(Color(0, 0, 0, 0), GOLD, 2))
-	th.set_color("font_color", "Button", Color("#fff3cf"))
-	th.set_color("font_hover_color", "Button", Color.WHITE)
-	th.set_color("font_disabled_color", "Button", Color("#9a8a6a"))
+	th.set_color("font_color", "Button", TEXT)
+	th.set_color("font_hover_color", "Button", Color("#fff3c0"))
+	th.set_color("font_disabled_color", "Button", Color("#8a7e6a"))
 	th.set_font_size("font_size", "Button", 19)
 	var psb := StyleBoxTexture.new()
-	psb.texture = parchment_texture()
-	psb.texture_margin_left = 30
-	psb.texture_margin_right = 30
-	psb.texture_margin_top = 30
-	psb.texture_margin_bottom = 30
-	psb.content_margin_left = 34
-	psb.content_margin_right = 34
-	psb.content_margin_top = 28
-	psb.content_margin_bottom = 28
-	psb.expand_margin_left = 6
-	psb.expand_margin_right = 6
-	psb.expand_margin_top = 6
-	psb.expand_margin_bottom = 6
+	psb.texture = panel_texture()
+	psb.texture_margin_left = 14
+	psb.texture_margin_right = 14
+	psb.texture_margin_top = 14
+	psb.texture_margin_bottom = 14
+	psb.content_margin_left = 30
+	psb.content_margin_right = 30
+	psb.content_margin_top = 24
+	psb.content_margin_bottom = 24
 	th.set_stylebox("panel", "PanelContainer", psb)
-	th.set_stylebox("fill", "ProgressBar", _box(Color("#7ed957"), Color(0, 0, 0, 0), 0, 4, 0))
-	th.set_stylebox("background", "ProgressBar", _box(Color(0.1, 0.07, 0.04, 0.8), INK, 2, 5, 0))
+	th.set_stylebox("fill", "ProgressBar", _box(Color("#7ed957"), Color(0, 0, 0, 0), 0, 0, 0))
+	th.set_stylebox("background", "ProgressBar", _box(Color(0.1, 0.07, 0.04, 0.85), INK, 2, 0, 0))
 	return th
 
 
@@ -261,8 +270,12 @@ func _label(text: String, size := 20, color := Color.WHITE, outline := true, par
 
 
 func _ink(text: String, size := 20, parent: Node = null) -> Label:
-	var l := _label(text, size, INK, false, parent)
+	var l := _label(text, size, TEXT, false, parent)
 	l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	if size >= 30:
+		l.add_theme_color_override("font_color", GOLD)
+		l.add_theme_color_override("font_outline_color", Color("#120d0a"))
+		l.add_theme_constant_override("outline_size", 4)
 	return l
 
 
@@ -743,9 +756,9 @@ func show_result(data: Dictionary, on_close: Callable) -> void:
 	if (data["moments"] as Array).size() > 0:
 		_ink("CLIPS FROM THIS SHIFT", 20, vb)
 		var ml := _ink("- " + "\n- ".join(data["moments"]), 20, vb)
-		ml.add_theme_color_override("font_color", Color("#8a2a10"))
+		ml.add_theme_color_override("font_color", Color("#ffb070"))
 	var q := _ink(str(data["quote"]), 20, vb)
-	q.add_theme_color_override("font_color", Color("#4a3320"))
+	q.add_theme_color_override("font_color", Color("#c8b890"))
 	_button("Back to the tavern", vb, func():
 		close_modal(false)
 		on_close.call())

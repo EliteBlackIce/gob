@@ -1,6 +1,6 @@
 class_name FlickerLight
 extends OmniLight3D
-## Candle / torch / fire light that wobbles. Also drives an optional flame node.
+## Candle / torch / fire light that wobbles. Optionally drives a flame node's scale.
 
 var base_energy := 1.0
 var flame: Node3D = null
@@ -17,4 +17,4 @@ func _process(delta: float) -> void:
 	var f := 1.0 + sin((_t + _ph) * 13.0) * 0.08 + sin((_t + _ph) * 7.3) * 0.07 + sin((_t + _ph) * 23.0) * 0.04
 	light_energy = base_energy * f
 	if flame != null:
-		flame.scale = Vector3(1.0 + sin(_t * 17.0 + _ph) * 0.08, 1.0 + sin(_t * 11.0 + _ph) * 0.14, 1.0 + cos(_t * 15.0 + _ph) * 0.08)
+		flame.scale = Vector3(1.0 + sin(_t * 17.0 + _ph) * 0.06, 1.0 + sin(_t * 11.0 + _ph) * 0.12, 1.0 + cos(_t * 15.0 + _ph) * 0.06)

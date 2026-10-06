@@ -1,80 +1,10 @@
 class_name Style
 extends RefCounted
-## Procedural art helpers: everything in the game is built from primitives
-## wearing the same painterly shader, so the whole world reads as one style.
-
-static var _shader: Shader
-static var _cache: Dictionary = {}
+## Small helpers shared by gameplay scripts. All art lives in scripts/vox.
 
 
-static func shader() -> Shader:
-	return Paint.shader()
-
-
-static func mat(color: Color, rim := 0.5, emit := 0.0, flat := false) -> ShaderMaterial:
-	return Paint.get_mat("plain", color, {"rim": rim * 0.6, "emission_strength": emit, "flat_amount": 1.0 if flat else 0.0})
-
-
-## Un-cached material, for things that animate (glowing parcels, lanterns).
-static func make_mat(color: Color, rim := 0.5, emit := 0.0, flat := false) -> ShaderMaterial:
-	return Paint.make("plain", color, {"rim": rim * 0.6, "emission_strength": emit, "flat_amount": 1.0 if flat else 0.0})
-
-
-static func _place(mi: MeshInstance3D, parent: Node, pos: Vector3, rot: Vector3) -> MeshInstance3D:
-	mi.position = pos
-	mi.rotation_degrees = rot
-	if parent != null:
-		parent.add_child(mi)
-	return mi
-
-
-static func box(parent: Node, size: Vector3, color: Color, pos := Vector3.ZERO, rot := Vector3.ZERO, emit := 0.0) -> MeshInstance3D:
-	var mi := MeshInstance3D.new()
-	mi.mesh = MeshKit.rbox(size, clampf(minf(size.x, minf(size.y, size.z)) * 0.16, 0.012, 0.07))
-	mi.material_override = Paint.get_mat("wood", color, {"emission_strength": emit})
-	return _place(mi, parent, pos, rot)
-
-
-static func sphere(parent: Node, radius: float, color: Color, pos := Vector3.ZERO, scl := Vector3.ONE, segs := 8, emit := 0.0) -> MeshInstance3D:
-	var m := SphereMesh.new()
-	m.radius = radius
-	m.height = radius * 2.0
-	m.radial_segments = segs
-	m.rings = maxi(segs / 2, 3)
-	var mi := MeshInstance3D.new()
-	mi.mesh = m
-	mi.material_override = mat(color, 0.5, emit)
-	mi.scale = scl
-	return _place(mi, parent, pos, Vector3.ZERO)
-
-
-static func cyl(parent: Node, top_r: float, bot_r: float, h: float, color: Color, pos := Vector3.ZERO, rot := Vector3.ZERO, segs := 7, emit := 0.0) -> MeshInstance3D:
-	var m := CylinderMesh.new()
-	m.top_radius = top_r
-	m.bottom_radius = bot_r
-	m.height = h
-	m.radial_segments = segs
-	m.rings = 1
-	var mi := MeshInstance3D.new()
-	mi.mesh = m
-	mi.material_override = mat(color, 0.5, emit)
-	return _place(mi, parent, pos, rot)
-
-
-static func cone(parent: Node, r: float, h: float, color: Color, pos := Vector3.ZERO, rot := Vector3.ZERO, segs := 6) -> MeshInstance3D:
-	return cyl(parent, 0.0, r, h, color, pos, rot, segs)
-
-
-static func torus(parent: Node, inner: float, outer: float, color: Color, pos := Vector3.ZERO, rot := Vector3.ZERO, emit := 0.0) -> MeshInstance3D:
-	var m := TorusMesh.new()
-	m.inner_radius = inner
-	m.outer_radius = outer
-	m.rings = 10
-	m.ring_segments = 6
-	var mi := MeshInstance3D.new()
-	mi.mesh = m
-	mi.material_override = mat(color, 0.4, emit)
-	return _place(mi, parent, pos, rot)
+static func mat(color: Color, emit := 0.0) -> ShaderMaterial:
+	return VMat.solid(0.25, 4.0, {"tint": color, "emission_strength": emit})
 
 
 static func solid_box(parent: Node, size: Vector3, pos := Vector3.ZERO) -> StaticBody3D:
@@ -102,6 +32,7 @@ static func label3d(parent: Node, text: String, pos: Vector3, size := 0.02, colo
 	l.position = pos
 	l.rotation_degrees = rot
 	l.shaded = false
+	l.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
 	if parent != null:
 		parent.add_child(l)
 	return l
@@ -118,13 +49,19 @@ static func light(parent: Node, color: Color, energy: float, rng: float, pos: Ve
 	return l
 
 
-## One-shot chunky particle burst (feathers, sparks, splashes, confetti).
+## One-shot chunky cube burst (feathers, sparks, splashes, confetti).
 static func burst(tree_parent: Node, pos: Vector3, color: Color, amount := 14, speed := 5.0, size := 0.12, life := 0.8) -> void:
 	var p := CPUParticles3D.new()
 	var bm := BoxMesh.new()
 	bm.size = Vector3(size, size, size)
 	p.mesh = bm
-	p.material_override = mat(color, 0.2, 0.3)
+	var m := StandardMaterial3D.new()
+	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	m.albedo_color = color
+	m.emission_enabled = true
+	m.emission = color
+	m.emission_energy_multiplier = 1.4
+	p.material_override = m
 	p.amount = amount
 	p.lifetime = life
 	p.one_shot = true

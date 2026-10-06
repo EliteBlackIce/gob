@@ -27,9 +27,11 @@ func _ready() -> void:
 	s.radius = 0.12
 	cs.shape = s
 	add_child(cs)
-	var bmesh := Structures.bottle(Color("#3e9c5a"))
-	bmesh.position = Vector3(0, -0.16, 0)
-	add_child(bmesh)
+	var mi := MeshInstance3D.new()
+	mi.mesh = VoxProps.bottle(Color("#3e9c5a"))
+	mi.material_override = VMat.solid(0.03, 4.0)
+	mi.position = Vector3(0, -0.1, 0)
+	add_child(mi)
 	body_entered.connect(func(_b): _pop())
 	Sfx.play("whoosh", -6.0, 1.4)
 

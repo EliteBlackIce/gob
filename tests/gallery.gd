@@ -47,7 +47,10 @@ func snap(name: String, settle := 3) -> void:
 func node_aabb(n: Node) -> AABB:
 	var out := AABB()
 	var first := true
-	for m in n.find_children("*", "MeshInstance3D", true, false):
+	var meshes: Array = n.find_children("*", "MeshInstance3D", true, false)
+	if n is MeshInstance3D:
+		meshes.append(n)
+	for m in meshes:
 		var mi := m as MeshInstance3D
 		if mi.mesh == null:
 			continue
@@ -78,159 +81,146 @@ func frame_sphere(c: Vector3, r: float, yaw_deg: float, elev_deg: float) -> void
 
 # ---------------------------------------------------------------- studio
 
+func _vi(mesh: Mesh, vox: float, pos := Vector3.ZERO, rot_y := 0.0, extra := {}) -> MeshInstance3D:
+	var mi := MeshInstance3D.new()
+	mi.mesh = mesh
+	mi.material_override = VMat.solid(vox, 4.0, extra)
+	mi.position = pos
+	mi.rotation.y = deg_to_rad(rot_y)
+	return mi
+
+
+func _crow_node() -> Node3D:
+	var d := VoxCreatures.crow()
+	var root := Node3D.new()
+	var body := _vi(d["body"], 0.06)
+	body.scale = Vector3.ONE * 1.5
+	root.add_child(body)
+	for sd in [-1.0, 1.0]:
+		var w := Node3D.new()
+		w.position = Vector3(sd * 0.15, 0.18, 0.0) * 1.5
+		w.scale = Vector3.ONE * 1.5
+		w.rotation.z = -sd * 0.3
+		root.add_child(w)
+		w.add_child(_vi(d["wingL"] if sd > 0 else d["wingR"], 0.06))
+	root.position.y = 0.5
+	return root
+
+
+func _slime_node() -> Node3D:
+	var d := VoxCreatures.slime()
+	var root := Node3D.new()
+	var core := _vi(d["core"], 0.06, Vector3(0, 0.38, 0), 0.0, {"emission_strength": 0.5})
+	root.add_child(core)
+	root.add_child(_vi(d["ring"], 0.05, Vector3(0.12, 0.52, 0.52)))
+	var shell := MeshInstance3D.new()
+	shell.mesh = d["shell"]
+	shell.material_override = VMat.glass(0.06, 0.5, {"emission_strength": 0.5})
+	root.add_child(shell)
+	var bd := _vi(d["board"], 0.05, Vector3(-0.58, 0.42, 0.2), 40.0)
+	root.add_child(bd)
+	return root
+
+
+func _ogre_node() -> Node3D:
+	var d := VoxCreatures.ogre()
+	var root := Node3D.new()
+	root.add_child(_vi(d["torso"], 0.07, Vector3(0, 0.55, 0)))
+	root.add_child(_vi(d["head"], 0.07, Vector3(0, 1.85, 0.1)))
+	for sd in [-1.0, 1.0]:
+		root.add_child(_vi(d["arm"], 0.07, Vector3(sd * 0.95, 1.7, 0.1)))
+	return root
+
+
+func _parcel_node(job: Dictionary, heat := 0.0) -> Node3D:
+	var p := Parcel.create(job)
+	p.heat = heat
+	return p
+
+
 func studio() -> void:
-	var env := Environment.new()
-	env.background_mode = Environment.BG_COLOR
-	env.background_color = Color("#d9e6ee")
-	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	env.ambient_light_color = Color("#9ab8de")
-	env.ambient_light_energy = 0.4
-	env.tonemap_mode = Environment.TONE_MAPPER_FILMIC
-	env.adjustment_enabled = true
-	env.adjustment_saturation = 1.2
-	var we := WorldEnvironment.new()
-	we.environment = env
-	add_child(we)
-	var sun := DirectionalLight3D.new()
-	sun.light_color = Color("#fff0d0")
-	sun.light_energy = 0.95
-	sun.rotation_degrees = Vector3(-48, 35, 0)
-	sun.shadow_enabled = true
-	add_child(sun)
-	var floor_body := StaticBody3D.new()
-	var cs := CollisionShape3D.new()
-	var bx := BoxShape3D.new()
-	bx.size = Vector3(40, 1, 40)
-	cs.shape = bx
-	floor_body.add_child(cs)
-	floor_body.position = Vector3(0, -0.5, 0)
-	add_child(floor_body)
-	var disc := MeshInstance3D.new()
-	var dm := CylinderMesh.new()
-	dm.top_radius = 4.0
-	dm.bottom_radius = 4.0
-	dm.height = 0.06
-	dm.radial_segments = 48
-	disc.mesh = dm
-	disc.material_override = Paint.get_mat("ground", Color("#d6cdb4"))
-	disc.position = Vector3(0, -0.03, 0)
-	add_child(disc)
+	Atmos.day(self)
 	cam = Camera3D.new()
-	cam.fov = 38.0
+	cam.fov = 36.0
 	add_child(cam)
 	cam.current = true
-	var ui_layer := UI.new()
-	add_child(ui_layer)
-	ui_layer.fade_to(0.0, 0.01)
-	ui_layer.show_hud(false)
-
+	var tile := Vox.new(0.25)
+	for x in range(-20, 20):
+		for z in range(-20, 20):
+			tile.set_v(x, -1, z, Color("#7cc048") if (x + z) % 2 == 0 else Color("#6ab43c"), 0.05)
+	var ground := _vi(tile.build(), 0.25)
+	add_child(ground)
 	var jobs := {}
 	for j in Game.JOBS:
 		jobs[j["trait"]] = j
-
-	# [name, factory, yaw, elev, pad(zoom: <1 = closer), optional sphere override [center, radius]]
 	var items: Array = [
-		["goblin_courier", func(): return GoblinModel.build(), 24.0, 8.0, 0.95, null],
-		["goblin_back", func(): return GoblinModel.build(), 200.0, 10.0, 0.95, null],
+		["goblin_courier", func(): return GoblinModel.build(), 24.0, 8.0, 0.95],
+		["goblin_back", func(): return GoblinModel.build(), 200.0, 8.0, 0.95],
 		["goblin_running", func():
 			var g := GoblinModel.build()
-			GoblinModel.animate(g, 1.0, 0.45, true)
-			return g, 40.0, 10.0, 0.95, null],
-		["goblin_hut_keeper", func(): return GoblinModel.build(Color("#a05a2a"), Color("#9bbd55"), false), 28.0, 10.0, 0.95, null],
-		["goblin_lighthouse_keeper", func(): return GoblinModel.build(Color("#2a6a7a"), Color("#7ab04a"), true, Color("#1a4a5a")), 28.0, 10.0, 0.95, null],
-		["goblin_barkeep_brin", func(): return GoblinModel.build(Color("#8a3a30"), Color("#7aa83a"), false), 28.0, 10.0, 0.95, null],
-		["crow", func(): return Crow.new(), 50.0, 20.0, 0.95, null],
-		["inspector_slime", func(): return Slime.new(), 32.0, 12.0, 0.95, null],
-		["customer_service_ogre", func(): return Ogre.new(), 24.0, 8.0, 1.0, [Vector3(0, 1.9, -1.6), 2.6]],
-		["parcel_screaming_cheese", func(): return Parcel.create(jobs["screamer"]), 30.0, 16.0, 0.95, null],
-		["parcel_hot_potato_cool", func(): return Parcel.create(jobs["hot"]), 30.0, 16.0, 0.95, null],
-		["parcel_hot_potato_about_to_blow", func():
-			var p := Parcel.create(jobs["hot"])
-			p.heat = 88.0
-			return p, 30.0, 16.0, 0.95, null],
-		["parcel_wiggly_crate", func(): return Parcel.create(jobs["wiggly"]), 30.0, 16.0, 0.95, null],
-		["parcel_grandmas_vase", func(): return Parcel.create(jobs["glass"]), 30.0, 16.0, 0.95, null],
-		["parcel_ceremonial_anvil", func(): return Parcel.create(jobs["heavy"]), 30.0, 16.0, 0.95, null],
-		["throwing_bottle", func(): return Structures.bottle(Color("#3e9c5a")), 30.0, 16.0, 0.95, null],
-		["palm_tree", func(): return _palm(), 25.0, 8.0, 0.8, null],
-		["rock_boulders", func(): return _rocks(), 25.0, 14.0, 0.8, null],
-		["bush_and_plants", func(): return _plants(), 25.0, 14.0, 0.8, null],
-		["perch_post", func(): return _post(), 25.0, 8.0, 0.85, null],
-		["bottle_crate_pickup", func(): return _crate(), 30.0, 14.0, 0.95, null],
+			GoblinModel.animate(g, 1.0, 0.45, false)
+			return g, 38.0, 8.0, 0.95],
+		["goblin_hut_keeper", func(): return GoblinModel.build(Color("#a05a2a"), Color("#8ac84a"), false, Color.WHITE, false), 24.0, 8.0, 0.95],
+		["goblin_lighthouse_keeper", func(): return GoblinModel.build(Color("#2a6a7a"), Color("#7ab04a"), true, Color("#1a4a5a"), false), 24.0, 8.0, 0.95],
+		["goblin_barkeep_brin", func(): return GoblinModel.build(Color("#8a3a30"), Color("#74b83c"), false, GoblinModel.CAP, false), 24.0, 8.0, 0.95],
+		["crow", func(): return _crow_node(), 40.0, 18.0, 0.95],
+		["inspector_slime", func(): return _slime_node(), 32.0, 12.0, 0.95],
+		["customer_service_ogre", func(): return _ogre_node(), 20.0, 8.0, 0.95],
+		["parcel_screaming_cheese", func(): return _parcel_node(jobs["screamer"]), 28.0, 14.0, 0.95],
+		["parcel_hot_potato_cool", func(): return _parcel_node(jobs["hot"], 0.0), 28.0, 14.0, 0.95],
+		["parcel_hot_potato_about_to_blow", func(): return _parcel_node(jobs["hot"], 90.0), 28.0, 14.0, 0.95],
+		["parcel_wiggly_crate", func(): return _parcel_node(jobs["wiggly"]), 28.0, 14.0, 0.95],
+		["parcel_grandmas_vase", func(): return _parcel_node(jobs["glass"]), 28.0, 14.0, 0.95],
+		["parcel_ceremonial_anvil", func(): return _parcel_node(jobs["heavy"]), 28.0, 14.0, 0.95],
+		["throwing_bottle", func(): return _vi(VoxProps.bottle(Color("#3e9c5a")), 0.03), 28.0, 14.0, 0.95],
+		["palm_tree", func(): return _vi(VoxProps.palm(0), VoxProps.PALM_V), 30.0, 8.0, 0.9],
+		["rock", func(): return _vi(VoxProps.rock(1), 0.25), 30.0, 14.0, 0.95],
+		["sea_stack", func(): return _vi(VoxProps.stack(0), 0.5), 30.0, 10.0, 0.95],
+		["bush", func(): return _vi(VoxProps.bush(0), 0.2), 30.0, 14.0, 0.95],
+		["jungle_plants", func():
+			var r := Node3D.new()
+			r.add_child(_vi(VoxProps.bigleaf(0), 0.2, Vector3(-1.4, 0, 0)))
+			r.add_child(_vi(VoxProps.redplant(0), 0.18, Vector3(0.0, 0, 0)))
+			r.add_child(_vi(VoxProps.grass(0), 0.12, Vector3(1.2, 0, 0)))
+			for k in 5:
+				r.add_child(_vi(VoxProps.flower(k), 0.1, Vector3(1.8 + k * 0.25, 0, 0.5)))
+			return r, 24.0, 20.0, 0.95],
+		["barrel_crate_sack", func():
+			var r2 := Node3D.new()
+			r2.add_child(_vi(VoxProps.barrel(), 0.05, Vector3(-0.8, 0, 0)))
+			r2.add_child(_vi(VoxProps.crate(), 0.05, Vector3(0.1, 0, 0), 20.0))
+			r2.add_child(_vi(VoxProps.sack(), 0.05, Vector3(0.9, 0, 0)))
+			return r2, 24.0, 14.0, 0.95],
+		["torch_lantern_mailbox", func():
+			var r3 := Node3D.new()
+			r3.add_child(_vi(VoxProps.torch(true), 0.04, Vector3(-0.6, 0, 0), 0.0, {"emission_strength": 2.0}))
+			r3.add_child(_vi(VoxProps.lantern(true), 0.04, Vector3(0.0, 0, 0), 0.0, {"emission_strength": 2.0}))
+			r3.add_child(_vi(VoxProps.mailbox(), 0.05, Vector3(0.7, 0, 0)))
+			return r3, 24.0, 14.0, 0.95],
+		["table_stool_mug_candle", func():
+			var r4 := Node3D.new()
+			r4.add_child(_vi(VoxProps.table(), 0.05, Vector3(0, 0, 0)))
+			r4.add_child(_vi(VoxProps.stool(), 0.05, Vector3(-1.2, 0, 0)))
+			r4.add_child(_vi(VoxProps.mug(), 0.03, Vector3(-0.4, 0.9, 0.1)))
+			r4.add_child(_vi(VoxProps.candle(6), 0.03, Vector3(0.3, 0.9, 0.0)))
+			return r4, 24.0, 20.0, 0.95],
+		["banner", func(): return _vi(VoxProps.banner(Color("#9a2a3a")), 0.05, Vector3(0, 2.1, 0)), 10.0, 0.0, 0.95],
 	]
 	for it in items:
 		var n: Node3D = (it[1] as Callable).call()
 		add_child(n)
 		await frames(2)
-		if it[5] != null:
-			frame_sphere(it[5][0], it[5][1], float(it[2]), float(it[3]))
-		else:
-			frame(n, float(it[2]), float(it[3]), float(it[4]))
+		frame(n, float(it[2]), float(it[3]), float(it[4]))
 		await snap(str(it[0]))
 		n.queue_free()
 		await frames(2)
-
-	# ragdoll mid-fall
-	var rd := Ragdoll.spawn(self, Vector3(0, 2.2, 0), Vector3(2, 5, 3))
-	cam.global_position = Vector3(3.0, 2.2, 4.0)
-	cam.look_at(Vector3(0, 1.1, 0), Vector3.UP)
-	await frames(5)
+	var rd := Ragdoll.spawn(self, Vector3(0, 1.6, 0), Vector3(2, 5, 3))
+	await frames(6)
 	var tp: Vector3 = rd.torso.global_position
-	cam.global_position = tp + Vector3(2.6, 0.8, 3.4)
+	cam.global_position = tp + Vector3(2.0, 0.6, 2.8)
 	cam.look_at(tp, Vector3.UP)
 	await snap("goblin_ragdoll", 1)
 	rd.queue_free()
-
-
-func _palm() -> Node3D:
-	var root := Node3D.new()
-	var mi := MeshInstance3D.new()
-	mi.mesh = Props.palm(0)
-	root.add_child(mi)
-	return root
-
-
-func _rocks() -> Node3D:
-	var root := Node3D.new()
-	var xs := [-2.2, 0.4, 2.6]
-	for i in 3:
-		var mi := MeshInstance3D.new()
-		mi.mesh = MeshKit.rock(1.0, 11 + i * 5, 0.75 + 0.1 * i)
-		mi.material_override = Props.rock_mat()
-		mi.position = Vector3(xs[i], 0.4, 0.0)
-		mi.scale = Vector3.ONE * (1.1 - 0.25 * i)
-		root.add_child(mi)
-	return root
-
-
-func _plants() -> Node3D:
-	var root := Node3D.new()
-	var items := [[Props.big_leaf_plant(0), Vector3(-1.6, 0, 0)], [Props.red_plant(0), Vector3(0.4, 0, 0)], [Props.fern(0), Vector3(1.8, 0, 0)], [Props.grass(0), Vector3(2.9, 0, 0)], [Props.bush(0), Vector3(-3.6, 0, 0)]]
-	for it in items:
-		var mi := MeshInstance3D.new()
-		mi.mesh = it[0]
-		mi.position = it[1]
-		root.add_child(mi)
-	return root
-
-
-func _post() -> Node3D:
-	var root := Node3D.new()
-	Style.cyl(root, 0.18, 0.26, 4.4, Color("#7a5a38"), Vector3(0, 2.2, 0), Vector3(3, 0, -2), 6)
-	Style.box(root, Vector3(1.5, 0.12, 0.2), Color("#6a4a2d"), Vector3(0, 4.0, 0), Vector3(0, 30, 0))
-	var crow := Crow.new()
-	crow.position = Vector3(0.3, 4.3, 0)
-	root.add_child(crow)
-	return root
-
-
-func _crate() -> Node3D:
-	var crate := Node3D.new()
-	Style.cyl(crate, 0.35, 0.4, 0.7, Color("#8a5a30"), Vector3(0, 0.35, 0), Vector3.ZERO, 8)
-	Style.torus(crate, 0.02, 0.38, Color("#4a3322"), Vector3(0, 0.3, 0), Vector3.ZERO)
-	for k in 3:
-		Style.cyl(crate, 0.05, 0.06, 0.35, Color("#4cc27a"), Vector3(-0.15 + k * 0.15, 0.85, 0), Vector3(0, 0, (k - 1) * 12), 6, 0.2)
-	return crate
 
 
 # ---------------------------------------------------------------- island (in-world)
