@@ -11,6 +11,7 @@ const WOOD := Color("#4a4038")
 const GOLD := Color("#f3c14a")
 
 var modal_open := false
+var modal_tag := ""
 var capture_wanted := false
 var hud_player: Player = null
 
@@ -18,16 +19,13 @@ var _root: Control
 var _hud: Control
 var _prompt: Label
 var _toasts: VBoxContainer
-var _copper: Label
-var _day: Label
 var _timer: Label
 var _dest: Label
 var _compass: Control
 var _parcel_name: Label
 var _parcel_bar: ProgressBar
 var _parcel_status: Label
-var _bottles: Label
-var _hearts: Control
+var combat: CombatHud
 var _mandate: Label
 var _crosshair: Control
 var _fade: ColorRect
@@ -53,30 +51,6 @@ var _qte_active := false
 var _slow_tw: Tween
 var compass_angle := 0.0
 var show_compass := false
-
-
-class Hearts extends Control:
-	var hp := 3
-	var max_hp := 3
-	const PAT := ["01101100", "11111110", "11111110", "01111100", "00111000", "00010000"]
-
-	func _draw() -> void:
-		var px := 4
-		for i in max_hp:
-			var ox := i * 42
-			var full := i < hp
-			for r in PAT.size():
-				for c in 8:
-					if PAT[r][c] != "1":
-						continue
-					var col := Color("#e0382c") if full else Color("#3a1c1c")
-					if full and r == 0 and c in [1, 2]:
-						col = Color("#ff8a78")
-					elif full and (r == 4 or c == 6):
-						col = Color("#a82018")
-					draw_rect(Rect2(ox + c * px, r * px + 2, px, px), col)
-					if r == 0 or PAT[r - 1][c] != "1":
-						draw_rect(Rect2(ox + c * px, r * px + 2, px, 1), Color("#120d0a"))
 
 
 class Compass extends Control:
@@ -287,15 +261,8 @@ func _build_hud() -> void:
 	_hud.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_root.add_child(_hud)
 
-	var tl := VBoxContainer.new()
-	tl.position = Vector2(20, 14)
-	_hud.add_child(tl)
-	_hearts = Hearts.new()
-	_hearts.custom_minimum_size = Vector2(180, 40)
-	tl.add_child(_hearts)
-	_copper = _label("", 24, GOLD, true, tl)
-	_day = _label("", 18, Color("#f3e3b5"), true, tl)
-	_bottles = _label("", 20, Color("#9fe6b0"), true, tl)
+	combat = CombatHud.new()
+	_hud.add_child(combat)
 
 	var top := VBoxContainer.new()
 	top.set_anchors_preset(Control.PRESET_CENTER_TOP)
@@ -392,7 +359,13 @@ func hitstop(secs := 0.07) -> void:
 		Engine.time_scale = 1.0
 
 
-func configure_hud(island_mode: bool) -> void:
+func configure_hud(mode: Variant) -> void:
+	if typeof(mode) == TYPE_BOOL:
+		mode = "route" if mode else "hub"
+	var island_mode: bool = str(mode) == "route"
+	combat.dungeon = null
+	combat.boss = null
+	combat.objective = ""
 	_dest.visible = island_mode
 	_compass.visible = island_mode
 	_timer.visible = island_mode
@@ -423,18 +396,10 @@ func _process(delta: float) -> void:
 		_pause_label.visible = capture_wanted and Input.mouse_mode == Input.MOUSE_MODE_VISIBLE and not modal_open and _hud != null and _hud.visible
 	if _hud == null or not _hud.visible:
 		return
-	_copper.text = "COPPER  %d" % Game.copper
-	_day.text = "Day %d  -  %s the Goblin" % [Game.day, Game.goblin_name]
 	var p := hud_player
+	combat.player = p if (p != null and is_instance_valid(p)) else null
 	if p != null and is_instance_valid(p):
-		(_hearts as Hearts).hp = p.hp
-		(_hearts as Hearts).max_hp = p.max_hp
-		_hearts.queue_redraw()
-		var bt := ""
-		if Game.has_skill("bottle") and p.island != null:
-			bt = "BOTTLES  x%d" % p.bottles
-		_bottles.text = bt
-		_crosshair.visible = Game.has_skill("bottle") and p.island != null
+		_crosshair.visible = p.mode != "hub" or true
 		if p.interact_target != null and not modal_open:
 			_prompt.text = "[E]  " + p.interact_target.prompt
 		else:
@@ -554,7 +519,20 @@ func _build_banner() -> void:
 	_banner_sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 
 
+## Big centre-screen banner for dungeon events ("ROOM CLEARED", boss intros, level ups).
+func announce(title_text: String, sub := "", color := GOLD, secs := 2.2) -> void:
+	_banner_title.text = title_text
+	_banner_title.add_theme_color_override("font_color", color)
+	_banner_title.add_theme_font_size_override("font_size", 54 if title_text.length() <= 24 else (42 if title_text.length() <= 36 else 32))
+	_banner_sub.text = sub
+	var tw := create_tween().set_ignore_time_scale(true)
+	tw.tween_property(_banner, "modulate:a", 1.0, 0.15)
+	tw.tween_interval(secs)
+	tw.tween_property(_banner, "modulate:a", 0.0, 0.5)
+
+
 func _on_moment(caption: String) -> void:
+	_banner_title.add_theme_color_override("font_color", GOLD)
 	_banner_title.text = caption
 	_banner_title.add_theme_font_size_override("font_size", 54 if caption.length() <= 24 else (42 if caption.length() <= 36 else 32))
 	_banner_sub.text = "CLIP SAVED  -  press C to open your clips folder"
@@ -604,6 +582,16 @@ func _finish_qte(ok: bool) -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	if event.is_action_pressed("inventory") and _hud != null and _hud.visible:
+		var pl := hud_player
+		if modal_open and modal_tag == "inv":
+			close_modal()
+			get_viewport().set_input_as_handled()
+			return
+		if not modal_open and pl != null and is_instance_valid(pl) and not pl.dead and pl.mode != "route":
+			Menus.show_inventory(self, "pack")
+			get_viewport().set_input_as_handled()
+			return
 	if _qte_active and event.is_action_pressed("interact"):
 		var d := absf(_qte_t - _qte_total)
 		_finish_qte(d <= _qte_window * 0.5 or (_qte_t > _qte_total - _qte_window * 0.5 and _qte_t < _qte_total + _qte_window * 0.3))
@@ -643,6 +631,7 @@ func close_modal(recapture := true) -> void:
 		_modal.queue_free()
 	_modal = null
 	modal_open = false
+	modal_tag = ""
 	if recapture and capture_wanted:
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 
@@ -705,7 +694,7 @@ func show_riddle(heading: String, question: String, answers: Array, cb: Callable
 func show_skills(on_close := Callable()) -> void:
 	var vb := _open_modal(1040)
 	_ink("THE CELLAR  -  Skill Tree", 34, vb)
-	_ink("Skill points: %d   (earn one per delivery, two for a spotless one)" % Game.skill_points, 18, vb)
+	_ink("Skill points: %d   (one per level up!)" % Game.skill_points, 18, vb)
 	var cols := HBoxContainer.new()
 	cols.add_theme_constant_override("separation", 12)
 	vb.add_child(cols)
@@ -715,7 +704,7 @@ func show_skills(on_close := Callable()) -> void:
 		col.add_theme_constant_override("separation", 8)
 		cols.add_child(col)
 		_ink(branch.to_upper(), 24, col)
-		for tier in [1, 2, 3]:
+		for tier in [1, 2, 3, 4]:
 			for id in Game.SKILLS:
 				var s: Dictionary = Game.SKILLS[id]
 				if s["branch"] != branch or s["tier"] != tier:
@@ -740,7 +729,7 @@ func show_title(on_start: Callable, on_reset: Callable) -> void:
 	var vb := _open_modal(760)
 	_ink("GOBLIN DELIVERY CO.", 54, vb)
 	_ink("You are a goblin. Your boss doesn't care. The parcels are screaming.\nDeliver them anyway.", 22, vb)
-	_ink("WASD move   Mouse look   SPACE jump   E interact   LMB throw bottle   F kick   G toss parcel\nSHIFT dash* and Q parcel-slap* are learned in the cellar   ESC release mouse   C open clips folder", 17, vb)
+	_ink("WASD move   Mouse look   SPACE jump   E interact   TAB inventory\nLMB attack   RMB block (parry just before a hit!)   SHIFT dodge roll   F kick\nQ throw bottle   R grog   Z holler   G toss parcel (island)   ESC release mouse", 17, vb)
 	_button("Clock in", vb, func():
 		close_modal(false)
 		on_start.call())
@@ -753,12 +742,24 @@ func show_result(data: Dictionary, on_close: Callable) -> void:
 	var vb := _open_modal(720)
 	_ink(str(data["title"]), 38, vb)
 	_ink(str(data["lines"]), 22, vb)
+	if data.has("loot") and (data["loot"] as Array).size() > 0:
+		_ink("LOOT", 20, vb).add_theme_color_override("font_color", GOLD)
+		var shown := 0
+		for it in data["loot"]:
+			var item: Dictionary = it
+			if shown >= 8:
+				break
+			shown += 1
+			var ll := _label("  %s  %s" % [ItemDB.rarity_name(int(item["rarity"])), ItemDB.title(item)], 18, ItemDB.rarity_color(int(item["rarity"])), true, vb)
+			ll.autowrap_mode = TextServer.AUTOWRAP_OFF
+		if (data["loot"] as Array).size() > 8:
+			_ink("  ...and %d more" % ((data["loot"] as Array).size() - 8), 16, vb)
 	if (data["moments"] as Array).size() > 0:
 		_ink("CLIPS FROM THIS SHIFT", 20, vb)
 		var ml := _ink("- " + "\n- ".join(data["moments"]), 20, vb)
 		ml.add_theme_color_override("font_color", Color("#ffb070"))
 	var q := _ink(str(data["quote"]), 20, vb)
 	q.add_theme_color_override("font_color", Color("#c8b890"))
-	_button("Back to the tavern", vb, func():
+	_button(str(data.get("button", "Back to the tavern")), vb, func():
 		close_modal(false)
 		on_close.call())

@@ -304,8 +304,6 @@ func _end(outcome: String, title: String, lines: String, _pay: int, _pts: int) -
 		"moments": Game.clips.duplicate(),
 		"quote": "Grubnik: \"%s\"" % quotes[randi() % quotes.size()],
 	}
-	Game.perk_hp = 0
-	Game.perk_bottles = 0
 	Engine.time_scale = 1.0
 	await ui.fade_to(1.0, 0.5)
 	finished.emit(result)

@@ -41,7 +41,7 @@ func _on_start() -> void:
 	if not Game.seen_intro:
 		Game.seen_intro = true
 		Game.save_game()
-		ui.show_letter("WELCOME, NEW GOBLIN", "Congratulations on your employment.\n\nThe tavern is the post office. The post office is the tavern. The job board has parcels. The ogre has opinions.\n\nPick a job, head out the door, deliver it. If you die, we will bill the funeral to your account.\n\nThere is a hatch in the floor. It's for 'training'. Do it.\n\n- Grubnik (management)", "Oh no")
+		ui.show_letter("WELCOME, NEW GOBLIN", "Congratulations on your employment.\n\nThe tavern is the post office. The post office is the dungeon entrance. The job board has parcels, and the parcels have customers, and the customers live in places full of things that bite.\n\nPick a contract, walk out the front door, kill whatever's in the way, loot the corpses and deliver the goods. Better gear, bigger bosses. Save up enough copper and we will let you buy a house. (We will not.)\n\nIf you die, the funeral is billed to your account and the dungeon keeps what you found. Swing the dummy by the door first. It has feelings. They are hurt.\n\n- Grubnik (management)", "Oh no")
 
 
 func _on_reset() -> void:
@@ -59,12 +59,21 @@ func _on_start_run() -> void:
 	_busy = true
 	await ui.fade_to(1.0, 0.45)
 	_free_current()
-	var isl := Island.new()
-	isl.ui = ui
-	isl.job = Game.current_job.duplicate()
-	isl.finished.connect(_on_run_finished)
-	add_child(isl)
-	current = isl
+	var job: Dictionary = Game.current_job.duplicate()
+	if job.get("kind", "route") == "dungeon":
+		var dg := Dungeon.new()
+		dg.ui = ui
+		dg.job = job
+		dg.finished.connect(_on_run_finished)
+		add_child(dg)
+		current = dg
+	else:
+		var isl := Island.new()
+		isl.ui = ui
+		isl.job = job
+		isl.finished.connect(_on_run_finished)
+		add_child(isl)
+		current = isl
 	ui.capture_wanted = true
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 	Sfx.music_volume(-20.0)

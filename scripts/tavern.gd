@@ -22,11 +22,12 @@ func _ready() -> void:
 	_build_fireplace()
 	_build_board_and_boss()
 	_build_decor()
+	_build_services()
 	_spawn_player()
 	_mk_main = _make_marker(Color("#ffd24a"))
 	_mk_cellar = _make_marker(Color("#7fd8ff"))
 	Atmos.motes(player.cam, Color("#ffd48a"), 60, Vector3(9, 3, 9), 0.05)
-	ui.configure_hud(false)
+	ui.configure_hud("hub")
 	ui.hud_player = player
 	ui.show_hud(true)
 	ui.capture_wanted = false
@@ -70,7 +71,7 @@ func _build_room() -> void:
 	for wx in [-7.0, 7.0]:
 		_light(Vector3(wx, 3.0, 6.0), Color("#8aa8ff"), 0.9, 9.0)
 	# corner clutter
-	for cl in [[Vector3(9.5, 0.9, 6.6), 0], [Vector3(10.1, 0.9, 5.5), 1], [Vector3(-9.6, 0.9, 6.8), 0], [Vector3(-8.6, 0.9, 7.0), 1], [Vector3(9.5, 0.9, -6.6), 0]]:
+	for cl in [[Vector3(-9.6, 0.9, 6.8), 0], [Vector3(-8.6, 0.9, 7.0), 1], [Vector3(9.5, 0.9, -6.6), 0]]:
 		_mesh(VoxProps.barrel(), 0.05, cl[0] + Vector3(0, -0.9, 0), cl[1] * 40.0)
 		Style.solid_box(self, Vector3(1.0, 1.0, 1.0), cl[0] + Vector3(0, -0.4, 0))
 	_mesh(VoxProps.crate(), 0.05, Vector3(-9.8, 0.0, 5.6), 20.0)
@@ -288,7 +289,7 @@ func _spawn_player() -> void:
 	player.ui = ui
 	player.position = Vector3(1.0, 0.2, 3.0)
 	add_child(player)
-	player.setup_for_run(false)
+	player.setup_for_run("hub")
 	player.yaw = 0.0
 	player.pitch = -0.05
 
@@ -323,20 +324,12 @@ func _exit_door(_by: Node) -> void:
 
 
 func _job_board(_by: Node) -> void:
-	var entries: Array = []
-	for j in Game.today_jobs:
-		var job: Dictionary = j
-		var mark := "  (SELECTED)" if Game.current_job.get("id", "") == job["id"] and Game.current_job.get("dest", "") == job["dest"] else ""
-		entries.append({
-			"label": "%s  ->  %s%s" % [job["title"], job["dest_name"], mark],
-			"desc": "%s   Pay: %d copper   Time: %d:%02d" % [job["note"], job["pay"], int(job["time"]) / 60, int(job["time"]) % 60],
-			"cb": func():
-				Game.current_job = job
-				ui.close_modal()
-				ui.toast("Taken: %s. Head for the door." % job["title"], Color("#9dffa0"))
-				Sfx.play("coin"),
-		})
-	ui.show_menu("JOB BOARD", "Day %d.  Grubnik: \"%s\"" % [Game.day, Game.mandate["text"]], entries, "Leave them (cowardly)")
+	Menus.show_contracts(ui, func(job: Dictionary):
+		Game.current_job = job
+		var msg := "Taken: %s. Head for the door." % job["title"]
+		if job["kind"] == "dungeon":
+			msg = "Contract: %s (tier %d). Head for the door!" % [Game.THEMES[job["theme"]]["name"], job["tier"]]
+		ui.toast(msg, Color("#9dffa0")))
 
 
 func _boss_letter(_by: Node) -> void:
@@ -350,25 +343,115 @@ func _cellar(_by: Node) -> void:
 
 
 func _bar_menu(_by: Node) -> void:
-	var can_grog: bool = Game.copper >= 25 and Game.perk_hp < 2
-	var can_crate: bool = Game.copper >= 20 and Game.perk_bottles < 6
+	var cap := int(Stats.compute()["grog"]) + 2
+	var can_grog: bool = Game.copper >= 30 and Game.grog_stock < cap
+	var sat_cost := 60 * (Game.perk_bottles + 1)
 	var entries: Array = [
-		{"label": "Goblin Grog  -  25 copper", "desc": "+1 max HP on your next run (stacks to +2). Tastes like regret and fire.", "enabled": can_grog,
+		{"label": "Goblin Grog  -  30 copper", "desc": "Heals 40%% of your HP when drunk (R). You carry %d / %d flasks. Tastes like regret and fire." % [Game.grog_stock, cap], "enabled": can_grog,
 			"cb": func():
-				Game.copper -= 25
-				Game.perk_hp += 1
+				Game.copper -= 30
+				Game.grog_stock += 1
 				Sfx.play("coin")
-				ui.close_modal()
-				ui.toast("Liquid courage acquired. (+1 HP next run)", Color("#ffd89a"))},
-		{"label": "Crate of Bottles  -  20 copper", "desc": "+3 throwing bottles next run. Brin won't judge.", "enabled": can_crate,
+				_bar_menu(null)},
+		{"label": "Bigger Bottle Satchel  -  %d copper" % sat_cost, "desc": "+1 starting throwing bottle in every dungeon, forever. (Now +%d.)" % Game.perk_bottles, "enabled": Game.copper >= sat_cost and Game.perk_bottles < 6,
 			"cb": func():
-				Game.copper -= 20
-				Game.perk_bottles += 3
+				Game.copper -= sat_cost
+				Game.perk_bottles += 1
 				Sfx.play("coin")
-				ui.close_modal()
-				ui.toast("Bottles loaded. (+3 next run)", Color("#9fe6b0"))},
+				_bar_menu(null)},
 	]
 	var quip := "Brin: \"Coin first. Questions never.\""
 	if Game.deaths > 3:
 		quip = "Brin: \"You again? I just wiped the stain.\""
-	ui.show_menu("THE SOGGY STAMP", quip, entries, "Never mind")
+	ui.show_menu("THE SOGGY STAMP", quip + "      (%d copper)" % Game.copper, entries, "Never mind")
+
+
+# ---------------------------------------------------------------- new services: smith, stash, realtor, dummy
+
+func _build_services() -> void:
+	# --- Gruk's anvil (east wall, south of the fireplace)
+	var anvil := Vox.new(0.05)
+	anvil.box(-5, 0, -4, 5, 6, 4, Color("#4a4a56"), 0.05)
+	anvil.box(-8, 6, -5, 8, 9, 5, Color("#6a6a78"), 0.05)
+	anvil.box(8, 7, -2, 13, 9, 2, Color("#6a6a78"), 0.05)
+	anvil.box(-8, 9, -5, 8, 10, 5, Color("#8a8a98"), 0.04)
+	_mesh(anvil.build(Vector3(0, 0, 0)), 0.05, Vector3(8.8, 0.0, 5.0), 90.0)
+	Style.solid_box(self, Vector3(1.0, 1.0, 1.2), Vector3(8.8, 0.5, 5.0))
+	var forge := Vox.new(0.05)
+	forge.cobble(-8, 0, -6, 8, 12, 6, Color("#6a6a74"), 3)
+	forge.box(-5, 8, 5, 5, 11, 6, Color("#ff7a20", 0.25), 0.1)
+	forge.box(-4, 3, 5, 4, 6, 6, Color("#ffb030", 0.2), 0.1)
+	_mesh(forge.build(Vector3(0, 0, 0)), 0.05, Vector3(10.4, 0.0, 6.3), 90.0)
+	Style.solid_box(self, Vector3(1.0, 1.2, 1.6), Vector3(10.6, 0.6, 6.3))
+	_light(Vector3(9.9, 1.4, 6.0), Color("#ff8a3a"), 2.2, 7.0)
+	var gruk := GoblinModel.build(Color("#4a4a56"), Color("#6aa030"), false, GoblinModel.CAP, false)
+	gruk.position = Vector3(9.5, 0.0, 4.2)
+	gruk.rotation.y = -PI * 0.6
+	gruk.scale = Vector3.ONE * 1.15
+	add_child(gruk)
+	Style.label3d(self, "GRUK'S ANVIL", Vector3(10.9, 3.0, 5.5), 0.009, Color("#f6e3a0"), Vector3(0, -90, 0))
+	Style.label3d(self, "buy / sell / enhance", Vector3(10.9, 2.55, 5.5), 0.005, Color("#c0a070"), Vector3(0, -90, 0))
+	Interactable.make(self, Vector3(9.2, 1.0, 4.6), "Talk to Gruk the Blacksmith", Callable(self, "_smith_menu"), 3.2)
+
+	# --- the stash chest by the fire
+	var chest_parts := DProps.chest(1)
+	var cb := MeshInstance3D.new()
+	cb.mesh = chest_parts["body"]
+	cb.material_override = VMat.solid(0.05, 4.0)
+	cb.position = Vector3(7.7, 0.0, -0.4)
+	cb.rotation.y = PI * 0.5
+	add_child(cb)
+	var cl := MeshInstance3D.new()
+	cl.mesh = chest_parts["lid"]
+	cl.material_override = VMat.solid(0.05, 4.0)
+	cl.position = Vector3(7.7 - 0.0, 0.4, -0.4)
+	cl.rotation.y = PI * 0.5
+	cl.position += Vector3(0.25, 0, 0)
+	add_child(cl)
+	Style.solid_box(self, Vector3(0.6, 0.5, 0.9), Vector3(7.7, 0.25, -0.4))
+	Style.label3d(self, "YOUR STASH", Vector3(7.7, 1.3, -0.4), 0.006, Color("#cfe0ff"), Vector3.ZERO, true)
+	Interactable.make(self, Vector3(7.5, 0.8, -0.4), "Open your stash", Callable(self, "_stash"), 2.8)
+
+	# --- Ms. Deed, realtor
+	var desk := _mesh(VoxProps.table(), 0.05, Vector3(-6.6, 0, 1.0), 90.0)
+	Style.solid_box(self, Vector3(1.1, 1.0, 1.8), Vector3(-6.6, 0.5, 1.0))
+	var deed := GoblinModel.build(Color("#7a3a8a"), Color("#a0c040"), true, Color("#6a2a7a"), false)
+	deed.position = Vector3(-7.9, 0.0, 1.0)
+	deed.rotation.y = PI * 0.5
+	add_child(deed)
+	_house_model = MeshInstance3D.new()
+	_house_model.material_override = VMat.solid(VoxHouses.S, 4.0)
+	_house_model.position = Vector3(-6.6, 0.92, 1.0)
+	add_child(_house_model)
+	_refresh_house()
+	_light(Vector3(-6.2, 2.4, 1.0), Color("#ffe0a0"), 1.3, 6.0)
+	Style.label3d(self, "MS. DEED  -  GOBLIN REALTY", Vector3(-9.6, 3.2, 1.0), 0.0065, Color("#f3d98a"), Vector3(0, 90, 0))
+	Interactable.make(self, Vector3(-6.6, 1.0, 1.0), "Talk to Ms. Deed (buy a house!)", Callable(self, "_realtor"), 3.0)
+
+	# --- the training dummy, by the door
+	var dummy := Dummy.new()
+	dummy.position = Vector3(5.2, 0.05, 5.6)
+	add_child(dummy)
+
+
+var _house_model: MeshInstance3D
+
+
+func _refresh_house() -> void:
+	if _house_model != null:
+		_house_model.mesh = VoxHouses.build(Game.house_tier)
+
+
+func _smith_menu(_by: Node) -> void:
+	ui.show_menu("GRUK THE BLACKSMITH", "Gruk: \"Anvil's hot. Wallet's not. Fix that.\"      %d copper" % Game.copper, [
+		{"label": "Browse wares", "desc": "A fresh selection every day.", "cb": func(): Menus.show_shop(ui)},
+		{"label": "Sell or enhance gear", "desc": "Enhance up to +5 (stats x1.08 each). Selling gives half value.", "cb": func(): Menus.show_inventory(ui, "smith")},
+	], "Leave")
+
+
+func _stash(_by: Node) -> void:
+	Menus.show_inventory(ui, "stash")
+
+
+func _realtor(_by: Node) -> void:
+	Menus.show_realtor(ui, func(): _refresh_house())

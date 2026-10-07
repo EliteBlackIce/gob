@@ -158,7 +158,7 @@ func _explode() -> void:
 	Game.moment("THE POTATO WENT OFF")
 	if player != null:
 		player.shake = 0.5
-		player.take_hit(Vector3.UP + Vector3(randf_range(-1, 1), 0, randf_range(-1, 1)), 9.0, 1, "was cooked by a Hot Potato (Literal)")
+		player.take_hit(Vector3.UP + Vector3(randf_range(-1, 1), 0, randf_range(-1, 1)), 9.0, 25, "was cooked by a Hot Potato (Literal)")
 
 
 func _escape() -> void:

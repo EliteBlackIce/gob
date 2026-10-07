@@ -201,7 +201,7 @@ func _swoop(delta: float) -> void:
 		_peck_cd = 1.8
 		var dir := (player.global_position - global_position)
 		dir.y = 0.0
-		player.take_hit(dir, 6.5, 1, "was pecked to death by a crow with a grudge")
+		player.take_hit(dir, 6.5, 18, "was pecked to death by a crow with a grudge")
 		state = S.LEAVE
 		_leave_t = 0.0
 		_cooldown = 1.5

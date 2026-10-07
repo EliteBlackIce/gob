@@ -17,6 +17,7 @@ const AO_CURVE := [0.52, 0.7, 0.85, 1.0]
 
 var size := 0.04
 var cells := {}
+var skip := {}                   # Vector3i -> bitmask of face indices (FACES order) never drawn
 static var _mesh_cache := {}
 
 
@@ -158,9 +159,11 @@ func build(origin := Vector3.ZERO, ao_on := true) -> ArrayMesh:
 	var cols := PackedColorArray()
 	for key: Vector3i in cells:
 		var c: Color = cells[key]
-		for f in FACES:
+		var sk: int = skip.get(key, 0)
+		for fi in 6:
+			var f: Array = FACES[fi]
 			var n: Vector3i = f[0]
-			if cells.has(key + n):
+			if (sk >> fi) & 1 == 1 or cells.has(key + n):
 				continue
 			var a: Vector3i = f[1]
 			var b: Vector3i = f[2]

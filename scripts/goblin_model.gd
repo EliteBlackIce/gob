@@ -301,3 +301,16 @@ static func pose_kick(model: Node3D, k: float) -> void:
 static func pose_wave(model: Node3D, t: float) -> void:
 	var rig := rig_of(model)
 	(rig["ArmR"] as Node3D).rotation = Vector3(0.0, 0.0, -2.55 + sin(t * 9.0) * 0.35)
+
+
+## Weapon swing for the third-person body (only its shadow is seen in first person).
+static func pose_swing(model: Node3D, k: float) -> void:
+	var rig := rig_of(model)
+	var wind := Style.smooth(0.0, 0.35, k)
+	var strike := Style.smooth(0.35, 0.55, k)
+	var back := Style.smooth(0.7, 1.0, k)
+	var ang := lerpf(-0.2, -2.7, wind)
+	ang = lerpf(ang, -0.5, strike)
+	ang = lerpf(ang, -0.2, back)
+	(rig["ArmR"] as Node3D).rotation = Vector3(ang, 0.0, -0.15)
+	(rig["Spine"] as Node3D).rotation.x += 0.25 * strike * (1.0 - back)

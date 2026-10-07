@@ -139,6 +139,43 @@ static func interior(parent: Node) -> Dictionary:
 	return {"env": env, "moon": moon}
 
 
+## Dungeon interior: dark, torch-lit, themed fog and ambient colour. dark_mode = "Power Outage".
+static func dungeon(parent: Node, theme: String, dark_mode := false) -> Dictionary:
+	var pal := DungeonBuilder.theme_colors(theme)
+	var env := Environment.new()
+	env.background_mode = Environment.BG_COLOR
+	env.background_color = pal["sky"]
+	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
+	env.ambient_light_color = (pal["ambient"] as Color)
+	env.ambient_light_energy = 0.3 if dark_mode else 0.95
+	env.tonemap_mode = Environment.TONE_MAPPER_FILMIC
+	env.tonemap_exposure = 1.0
+	env.glow_enabled = true
+	env.glow_intensity = 1.0
+	env.glow_strength = 1.1
+	env.glow_bloom = 0.1
+	env.glow_hdr_threshold = 0.8
+	env.fog_enabled = true
+	env.fog_light_color = pal["fog"]
+	env.fog_density = 0.028 if not dark_mode else 0.05
+	env.fog_sky_affect = 1.0
+	env.adjustment_enabled = true
+	env.adjustment_saturation = 1.22
+	env.adjustment_contrast = 1.1
+	_gi(env, false)
+	env.sdfgi_enabled = false
+	if _is_forward_plus():
+		env.volumetric_fog_enabled = true
+		env.volumetric_fog_density = 0.015
+		env.volumetric_fog_albedo = (pal["torch"] as Color).lerp(Color.WHITE, 0.5)
+		env.volumetric_fog_anisotropy = 0.5
+		env.volumetric_fog_length = 30.0
+	var we := WorldEnvironment.new()
+	we.environment = env
+	parent.add_child(we)
+	return {"env": env}
+
+
 ## Drifting, twinkling light motes that follow the camera ("little light particles in the sky").
 static func motes(cam: Node3D, color := Color("#fff2b0"), count := 90, extents := Vector3(16, 7, 16), size := 0.07) -> CPUParticles3D:
 	var p := CPUParticles3D.new()

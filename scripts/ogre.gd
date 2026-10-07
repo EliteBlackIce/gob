@@ -151,4 +151,4 @@ func _strike() -> void:
 	var lethal := strikes >= 3
 	Game.moment("RETURN TO SENDER" if not lethal else "SENT TO THE SHADOW REALM (FORM 27-B)")
 	ui.slowmo(0.3, 1.4)
-	player.take_hit(dir, 24.0, 3 if lethal else 2, "was returned to sender by Customer Service")
+	player.take_hit(dir, 24.0, 220 if lethal else 45, "was returned to sender by Customer Service")
