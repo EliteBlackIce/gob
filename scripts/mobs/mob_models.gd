@@ -167,7 +167,7 @@ static func _make_parts(kind: String, pal: Dictionary) -> Dictionary:
 
 
 static func _b(v: Vox, ox := 0.0, oy := 0.0, oz := 0.0) -> ArrayMesh:
-	return v.build(Vector3(ox, oy, oz))
+	return v.build_coarse(Vector3(ox, oy, oz))
 
 
 static func _skeleton(bone: Color, acc: Color, glow: Color, archer: bool) -> Dictionary:

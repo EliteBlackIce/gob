@@ -22,7 +22,7 @@ static func build(tier: int) -> ArrayMesh:
 			_manor(v)
 		5:
 			_castle(v)
-	return v.build(Vector3(0, 0, 0))
+	return v.build_coarse(Vector3(0, 0, 0))
 
 
 ## Gable roof along the x axis: rises from y0 over the z range [z0, z1).

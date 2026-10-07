@@ -34,9 +34,9 @@ static func crow() -> Dictionary:
 	for k in wl.cells:
 		wr.cells[Vector3i(-1 - k.x, k.y, k.z)] = wl.cells[k]
 	var d := {
-		"body": v.build(Vector3(0.5, 0, 0.5)),
-		"wingL": wl.build(Vector3(0, 0, 3)),
-		"wingR": wr.build(Vector3(0, 0, 3)),
+		"body": v.build_coarse(Vector3(0.5, 0, 0.5)),
+		"wingL": wl.build_coarse(Vector3(0, 0, 3)),
+		"wingR": wr.build_coarse(Vector3(0, 0, 3)),
 	}
 	_c["crow"] = d
 	return d
@@ -72,10 +72,10 @@ static func slime() -> Dictionary:
 		board.box(2, 3 + ln * 2, 2, 7, 4 + ln * 2, 3, Color("#4a3a2a"), 0.0)
 	board.box(5, 1, 2, 7, 3, 3, Color("#d83a2a", 0.4), 0.0)
 	var d := {
-		"shell": shell.build(Vector3(8, 0, 8)),
-		"core": core.build(Vector3(4, 0, 4)),
-		"ring": ring.build(Vector3(2.5, 2.5, 0)),
-		"board": board.build(Vector3(4.5, 6, 0.5)),
+		"shell": shell.build_coarse(Vector3(8, 0, 8)),
+		"core": core.build_coarse(Vector3(4, 0, 4)),
+		"ring": ring.build_coarse(Vector3(2.5, 2.5, 0)),
+		"board": board.build_coarse(Vector3(4.5, 6, 0.5)),
 	}
 	_c["slime"] = d
 	return d
@@ -117,9 +117,9 @@ static func ogre() -> Dictionary:
 	a.box(0, -5, 0, 6, 0, 6, vest.darkened(0.1), 0.06)
 	a.box(-1, -18, -1, 7, -14, 7, skin.lightened(0.05), 0.06)                   # fist
 	var d := {
-		"torso": t.build(Vector3(11, 0, 6)),
-		"head": h.build(Vector3(7, 0, 6)),
-		"arm": a.build(Vector3(3, 0, 3)),
+		"torso": t.build_coarse(Vector3(11, 0, 6)),
+		"head": h.build_coarse(Vector3(7, 0, 6)),
+		"arm": a.build_coarse(Vector3(3, 0, 3)),
 	}
 	_c["ogre"] = d
 	return d

@@ -46,12 +46,12 @@ static func _floor_color(theme: String, vx: int, vz: int, base: Color, kind: int
 	var row := vz / 3
 	var off := (row % 2) * 2
 	var sx := (vx + off) / 3
-	var f3 := 0.85 + 0.28 * _h(sx, 1, row)
+	var f3 := 0.95 + 0.1 * _h(sx, 1, row)
 	if (vx + off) % 3 == 0 or vz % 3 == 0:
-		f3 *= 0.82
+		f3 *= 0.9
 	var r := _h(vx, 5, vz)
-	if r < 0.025:
-		f3 *= 0.62
+	if r < 0.006:
+		f3 *= 0.8
 	var c := _shade(base, f3)
 	if theme == "ice" and r > 0.985:
 		c.a = 0.55
@@ -64,11 +64,11 @@ static func _floor_color(theme: String, vx: int, vz: int, base: Color, kind: int
 static func _wall_color(theme: String, vx: int, vy: int, vz: int, base: Color, acc: Color) -> Color:
 	var bx := (vx + (vy & 1)) / 2
 	var bz := (vz + (vy & 1)) / 2
-	var f := 0.82 + 0.3 * _h(bx, vy, bz)
+	var f := 0.94 + 0.12 * _h(bx, vy, bz)
 	if (vx + vz + (vy & 1)) % 2 == 0:
-		f *= 0.93
+		f *= 0.97
 	if vy <= 1:
-		f *= 0.78                                   # dark base course
+		f *= 0.86                                   # darker base course
 	if vy >= WALL_H - 2:
 		f *= 0.86
 	var c := _shade(base, f)
@@ -77,7 +77,7 @@ static func _wall_color(theme: String, vx: int, vy: int, vz: int, base: Color, a
 	var r := _h(vx, vy + 17, vz)
 	match theme:
 		"crypt":
-			if r > 0.985:
+			if r > 0.997:
 				c = _shade(Color("#c8c4d0"), 0.9)    # stray bone-white brick
 			if vy < 4 and _h(vx / 2, 9, vz / 2) > 0.8 and r > 0.4:
 				c = _shade(Color("#4e6a3a"), f)      # moss
@@ -87,21 +87,19 @@ static func _wall_color(theme: String, vx: int, vy: int, vz: int, base: Color, a
 			if vy > 8 and r > 0.8:
 				c = _shade(Color("#3a5a40"), f)
 		"caves":
-			if r > 0.99:
+			if r > 0.997:
 				c = Color(0.82, 0.5, 1.0, 0.35)      # glowing ore
 		"furnace":
-			if r > 0.975:
+			if r > 0.99:
 				c = Color(1.0, 0.45, 0.1, 0.3)       # glowing cracks
 		"ice":
-			if r > 0.98:
+			if r > 0.995:
 				c = Color(0.85, 0.97, 1.0, 0.5)
-			elif r > 0.9:
-				c = c.lightened(0.18)
 	return c
 
 
 static func _ceil_color(theme: String, vx: int, vz: int, base: Color) -> Color:
-	var f := 0.55 + 0.2 * _h(vx / 2, 77, vz / 2)
+	var f := 0.6 + 0.06 * _h(vx / 2, 77, vz / 2)
 	if vx % 8 == 0 or vz % 8 == 0:
 		f *= 0.7                                    # beams
 	return _shade(base, f)
@@ -171,7 +169,7 @@ static func build(level: Node3D, g: DungeonGen) -> Dictionary:
 				var ck2 := Vector3i(vx, WALL_H, vz)
 				ch2.cells[ck2] = _ceil_color(theme, vx, vz, wall_c)
 				ch2.skip[ck2] = mask | (1 << 2)
-	var mat := VMat.solid(VXS, 8.0)
+	var mat := VMat.solid(VXS, 1.0)
 	var meshes: Array[MeshInstance3D] = []
 	for k in chunks:
 		var ck3: Vector2i = k

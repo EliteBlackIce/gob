@@ -136,7 +136,7 @@ func _ready() -> void:
 	fv.box(-1, 8, -1, 1, 11, 1, Color("#7a4a28"), 0.05)
 	fv.box(-2, 11, -2, 2, 13, 2, Color("#b8925a"), 0.04)
 	fv.box(-3, 2, 2, 3, 5, 3, Color("#e8d8a8"), 0.03)
-	fm.mesh = fv.build(Vector3(0, 0, 0))
+	fm.mesh = fv.build_coarse(Vector3(0, 0, 0))
 	fm.material_override = VMat.solid(0.03, 4.0)
 	flask.add_child(fm)
 	hand_l.add_child(flask)

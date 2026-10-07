@@ -73,7 +73,7 @@ static func palm(variant: int) -> ArrayMesh:
 					v.set_v(px - roundi(-dz * 2), py - 1, pz - roundi(dx * 2), shade.darkened(0.15), 0.08)
 		for k in 3:
 			v.set_v(top.x + (k % 2), top.y - 1 - (k / 2), (k + 1) % 2, Color("#5a3a1e"), 0.1)
-		return v.build(Vector3(0.5, 0, 0.5)))
+		return v.build_coarse(Vector3(0.5, 0, 0.5)))
 
 
 static func bush(variant: int) -> ArrayMesh:
@@ -99,7 +99,7 @@ static func bush(variant: int) -> ArrayMesh:
 				if v.has_v(x, y, z):
 					v.set_v(x, y + 1, z, fc, 0.05)
 					break
-		return v.build(Vector3(0.5, 0, 0.5)))
+		return v.build_coarse(Vector3(0.5, 0, 0.5)))
 
 
 static func grass(variant: int) -> ArrayMesh:
@@ -116,7 +116,7 @@ static func grass(variant: int) -> ArrayMesh:
 				var t := float(y) / h
 				var c := Color("#2f7a26").lerp(Color("#6cc03c"), t)
 				v.set_v(x + (lean if y > h / 2 else 0), y, z, c, 0.08)
-		return v.build(Vector3(0.5, 0, 0.5)))
+		return v.build_coarse(Vector3(0.5, 0, 0.5)))
 
 
 static func bigleaf(variant: int) -> ArrayMesh:
@@ -140,7 +140,7 @@ static func bigleaf(variant: int) -> ArrayMesh:
 					if sdw == 0:
 						c = c.lightened(0.12)
 					v.set_v(px, py - (1 if absi(sdw) == 2 else 0), pz, c, 0.07)
-		return v.build(Vector3(0.5, 0, 0.5)))
+		return v.build_coarse(Vector3(0.5, 0, 0.5)))
 
 
 static func redplant(variant: int) -> ArrayMesh:
@@ -159,7 +159,7 @@ static func redplant(variant: int) -> ArrayMesh:
 				v.set_v(roundi(dx * step), py, roundi(dz * step), c, 0.07)
 				if step > 1 and step < L:
 					v.set_v(roundi(dx * step - dz * 0.7), py, roundi(dz * step + dx * 0.7), c.darkened(0.1), 0.07)
-		return v.build(Vector3(0.5, 0, 0.5)))
+		return v.build_coarse(Vector3(0.5, 0, 0.5)))
 
 
 static func flower(variant: int) -> ArrayMesh:
@@ -171,7 +171,7 @@ static func flower(variant: int) -> ArrayMesh:
 		v.set_v(0, 5, 0, Color("#f4c030"), 0.0)
 		for d in [Vector3i(1, 5, 0), Vector3i(-1, 5, 0), Vector3i(0, 5, 1), Vector3i(0, 5, -1)]:
 			v.set_v(d.x, d.y, d.z, col, 0.05)
-		return v.build(Vector3(0.5, 0, 0.5)))
+		return v.build_coarse(Vector3(0.5, 0, 0.5)))
 
 
 static func rock(variant: int, mossy := true) -> ArrayMesh:
@@ -189,7 +189,7 @@ static func rock(variant: int, mossy := true) -> ArrayMesh:
 				if not v.cells.has(k + Vector3i(0, 1, 0)):
 					if Vox.hash3(k.x, k.y, k.z) < 0.75:
 						v.cells[k] = Color("#5f9a3c").lerp(Color("#7cc048"), Vox.hash3(k.z, k.x, 3))
-		return v.build(Vector3(0, 0, 0)))
+		return v.build_coarse(Vector3(0, 0, 0)))
 
 
 ## Tall sea-stack / cliff boulder, voxel 0.5.
@@ -208,7 +208,7 @@ static func stack(variant: int) -> ArrayMesh:
 		for k in v.cells.keys():
 			if not v.cells.has(k + Vector3i(0, 1, 0)) and Vox.hash3(k.x, k.y, k.z) < 0.8:
 				v.cells[k] = Color("#58a838").lerp(Color("#7cc048"), Vox.hash3(k.z, 5, k.x))
-		return v.build(Vector3(0, 0, 0)))
+		return v.build_coarse(Vector3(0, 0, 0)))
 
 
 # ------------------------------------------------------------------ small props
@@ -224,7 +224,7 @@ static func barrel() -> ArrayMesh:
 			if y in [2, 7, 11, 15]:
 				v.cyl_y(0.0, 0.0, y, y + 1, r + 0.4, r + 0.4, IRON, 0.05)
 		v.cyl_y(0.0, 0.0, 17, 18, 6.0, 6.0, WOOD_BROWN.lightened(0.15), 0.08)
-		return v.build(Vector3(0.5, 0, 0.5)))
+		return v.build_coarse(Vector3(0.5, 0, 0.5)))
 
 
 static func crate(tint := Color("#9a6a3c")) -> ArrayMesh:
@@ -243,7 +243,7 @@ static func crate(tint := Color("#9a6a3c")) -> ArrayMesh:
 		for i in 12:
 			v.set_v(1 + i, 1 + i, 0, frame, 0.04)
 			v.set_v(12 - i, 1 + i, 0, frame, 0.04)
-		return v.build(Vector3(7, 0, 7)))
+		return v.build_coarse(Vector3(7, 0, 7)))
 
 
 static func torch(lit := true) -> ArrayMesh:
@@ -257,7 +257,7 @@ static func torch(lit := true) -> ArrayMesh:
 			v.box(0, 22, 0, 2, 24, 2, Color("#ffe07a", 0.1), 0.0)
 			v.set_v(-1, 20, 0, Color("#ff8a20", 0.3))
 			v.set_v(2, 20, 1, Color("#ff8a20", 0.3))
-		return v.build(Vector3(1, 0, 1)))
+		return v.build_coarse(Vector3(1, 0, 1)))
 
 
 static func lantern(lit := true) -> ArrayMesh:
@@ -272,7 +272,7 @@ static func lantern(lit := true) -> ArrayMesh:
 		v.box(2, 10, 2, 6, 11, 6, IRON, 0.03)
 		v.box(3, 11, 3, 5, 12, 5, IRON, 0.03)
 		v.box(3, 12, 3, 5, 14, 5, IRON, 0.03)
-		return v.build(Vector3(4, 0, 4)))
+		return v.build_coarse(Vector3(4, 0, 4)))
 
 
 static func mailbox() -> ArrayMesh:
@@ -285,7 +285,7 @@ static func mailbox() -> ArrayMesh:
 		v.box(6, 24, 0, 7, 34, 1, GOLD, 0.03)                        # flag
 		v.box(6, 32, 0, 11, 34, 1, GOLD, 0.03)
 		v.box(-2, 26, 4, 3, 27, 6, PAPER, 0.02)                      # letter in the slot
-		return v.build(Vector3(1, 0, 1)))
+		return v.build_coarse(Vector3(1, 0, 1)))
 
 
 static func bottle(c := Color("#3e9c5a")) -> ArrayMesh:
@@ -295,7 +295,7 @@ static func bottle(c := Color("#3e9c5a")) -> ArrayMesh:
 		v.box(1, 8, 1, 3, 13, 3, Color(c.r, c.g, c.b, 0.82), 0.05)
 		v.box(1, 13, 1, 3, 14, 3, Color("#8a5a2a"), 0.05)
 		v.box(0, 2, 0, 4, 5, 1, PAPER, 0.03)
-		return v.build(Vector3(2, 0, 2)))
+		return v.build_coarse(Vector3(2, 0, 2)))
 
 
 static func mug(foam := true) -> ArrayMesh:
@@ -306,7 +306,7 @@ static func mug(foam := true) -> ArrayMesh:
 		v.box(1, 6, 1, 4, 7, 4, Color("#e8c060") if not foam else Color("#f8f4e4"), 0.05)
 		v.box(0, 1, 0, 5, 2, 5, IRON, 0.03)
 		v.box(0, 4, 0, 5, 5, 5, IRON, 0.03)
-		return v.build(Vector3(2.5, 0, 2.5)))
+		return v.build_coarse(Vector3(2.5, 0, 2.5)))
 
 
 static func candle(h := 6) -> ArrayMesh:
@@ -316,7 +316,7 @@ static func candle(h := 6) -> ArrayMesh:
 		v.box(0, 1, 0, 2, h, 2, Color("#f1e8cc"), 0.03)
 		v.box(0, h, 0, 1, h + 1, 1, Color("#ffe07a", 0.1), 0.0)
 		v.box(0, h + 1, 0, 1, h + 2, 1, Color("#ffb030", 0.2), 0.0)
-		return v.build(Vector3(0.5, 0, 0.5)))
+		return v.build_coarse(Vector3(0.5, 0, 0.5)))
 
 
 static func table() -> ArrayMesh:
@@ -328,7 +328,7 @@ static func table() -> ArrayMesh:
 		for x in [1, 31]:
 			for z in [1, 16]:
 				v.box(x, 0, z, x + 3, 16, z + 3, WOOD_BROWN.darkened(0.15), 0.07)
-		return v.build(Vector3(17, 0, 10)))
+		return v.build_coarse(Vector3(17, 0, 10)))
 
 
 static func stool() -> ArrayMesh:
@@ -337,7 +337,7 @@ static func stool() -> ArrayMesh:
 		v.cyl_y(0.0, 0.0, 8, 10, 5.0, 5.0, Color("#a47440"), 0.07)
 		for a in [Vector2(-3, -3), Vector2(3, -3), Vector2(-3, 3), Vector2(3, 3)]:
 			v.box(int(a.x) - 1, 0, int(a.y) - 1, int(a.x) + 1, 8, int(a.y) + 1, WOOD_BROWN.darkened(0.2), 0.07)
-		return v.build(Vector3(0.5, 0, 0.5)))
+		return v.build_coarse(Vector3(0.5, 0, 0.5)))
 
 
 static func sack(c := Color("#b8a070")) -> ArrayMesh:
@@ -346,7 +346,7 @@ static func sack(c := Color("#b8a070")) -> ArrayMesh:
 		v.ellipsoid(0.0, 6.0, 0.0, 6.0, 6.5, 5.0, c, 0.09)
 		v.ellipsoid(0.0, 12.0, 0.0, 3.0, 3.0, 3.0, c.darkened(0.08), 0.09)
 		v.box(-3, 10, -3, 3, 11, 3, Color("#6a5638"), 0.04)
-		return v.build(Vector3(0.5, 0, 0.5)))
+		return v.build_coarse(Vector3(0.5, 0, 0.5)))
 
 
 static func banner(color := Color("#9a2a3a")) -> ArrayMesh:
@@ -366,7 +366,7 @@ static func banner(color := Color("#9a2a3a")) -> ArrayMesh:
 		v.box(5, 16, 0, 7, 20, 1, GOLD, 0.03)
 		v.box(11, 16, 0, 13, 20, 1, GOLD, 0.03)
 		v.box(8, 17, 0, 10, 19, 1, GOLD.lightened(0.2), 0.03)
-		return v.build(Vector3(9, 42, 0)))
+		return v.build_coarse(Vector3(9, 42, 0)))
 
 
 ## Flat patterned rug, voxel 0.1, lying on the floor.
@@ -391,7 +391,7 @@ static func rug(w: int, d: int, main: Color, trim: Color) -> ArrayMesh:
 					elif du + dv < 4:
 						c = trim.darkened(0.25)
 				v.set_v(x, 0, z, c, 0.04)
-		return v.build(Vector3(w / 2.0, 0, d / 2.0)))
+		return v.build_coarse(Vector3(w / 2.0, 0, d / 2.0)))
 
 
 # ------------------------------------------------------------------ parcels (voxel 0.04)
@@ -415,7 +415,7 @@ static func parcel_cheese() -> ArrayMesh:
 			v.box(ex + 1, 5, 8, ex + 2, 6, 9, Color("#201010"), 0.0)
 		v.box(-3, 1, 7, 3, 4, 9, Color("#5a0a10"), 0.0)
 		v.box(-1, 1, 8, 1, 2, 9, Color("#e0404a"), 0.0)
-		return v.build(Vector3(0.5, 0, 0.5)))
+		return v.build_coarse(Vector3(0.5, 0, 0.5)))
 
 
 static func parcel_potato() -> ArrayMesh:
@@ -435,7 +435,7 @@ static func parcel_potato() -> ArrayMesh:
 			if Vox.hash3(k.z, k.x, k.y) < 0.05:
 				var c: Color = v.cells[k]
 				v.cells[k] = Color(1.0, 0.45, 0.1, 0.35)
-		return v.build(Vector3(0.5, 0, 0.5)))
+		return v.build_coarse(Vector3(0.5, 0, 0.5)))
 
 
 static func parcel_wiggly() -> ArrayMesh:
@@ -453,7 +453,7 @@ static func parcel_wiggly() -> ArrayMesh:
 		v.box(-3, 3, 5, 3, 4, 6, Color("#201010"), 0.0)
 		for lx in [-4, 2]:
 			v.box(lx, 0, -1, lx + 2, 2, 2, Color("#3a2a1a"), 0.04)    # little legs
-		return v.build(Vector3(0, 0, 0)))
+		return v.build_coarse(Vector3(0, 0, 0)))
 
 
 static func parcel_vase() -> ArrayMesh:
@@ -472,7 +472,7 @@ static func parcel_vase() -> ArrayMesh:
 			v.set_v(4 + (13 - y if y > 11 else 0), y, 0, GOLD, 0.03)
 		v.set_v(-6, 13, 0, GOLD)
 		v.set_v(5, 13, 0, GOLD)
-		return v.build(Vector3(0.5, 0, 0.5)))
+		return v.build_coarse(Vector3(0.5, 0, 0.5)))
 
 
 static func parcel_anvil() -> ArrayMesh:
@@ -485,4 +485,4 @@ static func parcel_anvil() -> ArrayMesh:
 		for i in 6:
 			v.box(7 + i, 9 + i / 3, -2 + i / 3, 8 + i, 12 - i / 2, 3 - i / 3, steel.lightened(0.05), 0.06)
 		v.box(-6, 12, -2, 6, 13, 3, Color("#9aa0b0"), 0.04)
-		return v.build(Vector3(0.5, 0, 0.5)))
+		return v.build_coarse(Vector3(0.5, 0, 0.5)))

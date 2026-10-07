@@ -47,7 +47,7 @@ func _ready() -> void:
 	v.box(-7, 20, -2, -5, 24, 2, Color("#c0302a"), 0.0)                 # red target on the chest
 	v.box(-9, 4, -6, 10, 6, 7, Color("#5a3a1e"), 0.06)                  # base
 	var mi := MeshInstance3D.new()
-	mi.mesh = v.build(Vector3(0.5, 0, 0.5))
+	mi.mesh = v.build_coarse(Vector3(0.5, 0, 0.5))
 	var m := VMat.make_solid(0.05, 4.0)
 	mi.material_override = m
 	_mats = [m]

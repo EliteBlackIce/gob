@@ -6,7 +6,7 @@ render_mode diffuse_lambert, cull_back;
 
 uniform float vox = 0.04;            // voxel edge length in metres
 uniform float ppv = 4.0;             // texture pixels per voxel edge
-uniform float tex = 0.075;           // pixel noise strength
+uniform float tex = 0.02;           // pixel noise strength
 uniform vec4 tint : source_color = vec4(1.0);
 uniform float emission_strength = 1.7;
 uniform float wind = 0.0;

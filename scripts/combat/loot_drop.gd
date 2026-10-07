@@ -42,7 +42,7 @@ func _ready() -> void:
 	match kind:
 		"item":
 			var v := ItemModels.vox_for(item)
-			mi.mesh = v.build(_center(v))
+			mi.mesh = v.build_coarse(_center(v))
 			mi.material_override = VMat.solid(ItemModels.S, 4.0)
 			var sc := 1.15 if item["slot"] == "weapon" else 1.5
 			mi.scale = Vector3.ONE * sc

@@ -33,7 +33,7 @@ static func hash3(x: int, y: int, z: int) -> float:
 
 func set_v(x: int, y: int, z: int, c: Color, jit := 0.0) -> void:
 	if jit > 0.0:
-		var f := 1.0 + (hash3(x, y, z) - 0.5) * 2.0 * jit
+		var f := 1.0 + (hash3(x, y, z) - 0.5) * 2.0 * jit * 0.35     # calm, flat-ish blocks
 		c = Color(clampf(c.r * f, 0.0, 1.0), clampf(c.g * f, 0.0, 1.0), clampf(c.b * f, 0.0, 1.0), c.a)
 	cells[Vector3i(x, y, z)] = c
 
@@ -142,6 +142,38 @@ func line(a: Vector3i, b: Vector3i, c: Color, jit := 0.04) -> void:
 func shell(x0: int, y0: int, z0: int, x1: int, y1: int, z1: int, c: Color, thick := 1, jit := 0.05) -> void:
 	box(x0, y0, z0, x1, y1, z1, c, jit)
 	remove_box(x0 + thick, y0 + thick, z0 + thick, x1 - thick, y1 - thick, z1 - thick)
+
+
+## Merge 2x2x2 groups of fine voxels into one big block (colour = average). Thin one-voxel
+## details survive (they become one chunky block); lone specks vanish. Keeps the same size in metres.
+func coarsen(f := 2) -> Vox:
+	var out := Vox.new(size * f)
+	var acc := {}
+	for k: Vector3i in cells:
+		var g := Vector3i(floori(float(k.x) / f), floori(float(k.y) / f), floori(float(k.z) / f))
+		var c: Color = cells[k]
+		if not acc.has(g):
+			acc[g] = [0, 0.0, 0.0, 0.0, 0.0]
+		var a: Array = acc[g]
+		a[0] += 1
+		a[1] += c.r
+		a[2] += c.g
+		a[3] += c.b
+		a[4] += c.a
+	for g: Vector3i in acc:
+		var a2: Array = acc[g]
+		var n: int = a2[0]
+		if n < 2:
+			continue
+		out.cells[g] = Color(a2[1] / n, a2[2] / n, a2[3] / n, a2[4] / n)
+	return out
+
+
+## build() with automatic chunkiness: models made of tiny voxels (<= 0.06 m) are merged 2x.
+func build_coarse(origin := Vector3.ZERO, ao_on := true) -> ArrayMesh:
+	if size > 0.065:
+		return build(origin, ao_on)
+	return coarsen(2).build(origin / 2.0, ao_on)
 
 
 func count() -> int:

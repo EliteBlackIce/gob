@@ -100,7 +100,7 @@ static func weapon(base: String, rarity := 0) -> Vox:
 static func weapon_mesh(base: String, rarity := 0) -> ArrayMesh:
 	var key := "%s|%d" % [base, clampi(rarity, 0, 4)]
 	if not _mesh_cache.has(key):
-		_mesh_cache[key] = weapon(base, rarity).build(Vector3(0.5, 0, 0.5))
+		_mesh_cache[key] = weapon(base, rarity).build_coarse(Vector3(0.5, 0, 0.5))
 	return _mesh_cache[key]
 
 

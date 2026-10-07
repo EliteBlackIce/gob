@@ -178,16 +178,16 @@ static func _parts(skin: Color, vest: Color, hat_color: Color) -> Dictionary:
 	if _cache.has(key):
 		return _cache[key]
 	var d := {
-		"head": _head_vox(skin).build(Vector3(7, 0, 6)),
-		"tongue": _tongue_vox().build(Vector3(1.5, 5, 1)),
-		"earL": _ear_vox(skin, 1).build(Vector3(0, 3, 0.5)),
-		"earR": _ear_vox(skin, -1).build(Vector3(0, 3, 0.5)),
-		"cap": _cap_vox(hat_color).build(Vector3(7, 0, 6)),
-		"torso": _torso_vox(skin, vest).build(Vector3(5, 0, 3)),
-		"armL": _arm_vox(skin, vest).build(Vector3(1.5, 0, 1.5)),
-		"legL": _leg_vox(PANTS, BOOT, 1).build(Vector3(2, 14, 2)),
-		"legR": _leg_vox(PANTS, BOOT, -1).build(Vector3(2, 14, 2)),
-		"pack": _pack_vox().build(Vector3(6, 0, 7)),
+		"head": _head_vox(skin).build_coarse(Vector3(7, 0, 6)),
+		"tongue": _tongue_vox().build_coarse(Vector3(1.5, 5, 1)),
+		"earL": _ear_vox(skin, 1).build_coarse(Vector3(0, 3, 0.5)),
+		"earR": _ear_vox(skin, -1).build_coarse(Vector3(0, 3, 0.5)),
+		"cap": _cap_vox(hat_color).build_coarse(Vector3(7, 0, 6)),
+		"torso": _torso_vox(skin, vest).build_coarse(Vector3(5, 0, 3)),
+		"armL": _arm_vox(skin, vest).build_coarse(Vector3(1.5, 0, 1.5)),
+		"legL": _leg_vox(PANTS, BOOT, 1).build_coarse(Vector3(2, 14, 2)),
+		"legR": _leg_vox(PANTS, BOOT, -1).build_coarse(Vector3(2, 14, 2)),
+		"pack": _pack_vox().build_coarse(Vector3(6, 0, 7)),
 	}
 	_cache[key] = d
 	return d
