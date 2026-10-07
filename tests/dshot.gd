@@ -33,6 +33,8 @@ func _ready() -> void:
 			await menu_shots()
 		"friend":
 			await friend_shots()
+		"roamers":
+			await roamer_shots()
 	get_tree().quit()
 
 
@@ -381,3 +383,54 @@ func friend_shots() -> void:
 	await _snap("desk")
 	t._quota_desk()
 	await _snap("desk_menu")
+
+
+func roamer_shots() -> void:
+	Game.reset_save()
+	var root := _stage("crypt")
+	var cam := Camera3D.new()
+	cam.fov = 50.0
+	root.add_child(cam)
+	cam.current = true
+	var models: Array = []
+	var x := -2.4
+	for k in ["gnome", "thief", "sock"]:
+		var m := MobModels.build(k, "crypt")
+		for mi in m.find_children("*", "MeshInstance3D", true, false):
+			(mi as MeshInstance3D).material_override = VMat.solid(MobModels.S, 4.0)
+		m.position = Vector3(x, 1.6 if k == "sock" else 0.0, -3.0)
+		root.add_child(m)
+		models.append(m)
+		x += 2.4
+	var mine := Landmine.place(root, Vector3(1.2, 0, -1.6), 50.0, ui)
+	var ids := ["fish", "anvil", "doll", "bobble", "bphone", "lamp", "plunger", "mirror", "trumpet", "egg", "vase", "clock", "boot"]
+	var rng := RandomNumberGenerator.new()
+	for i in ids.size():
+		Scrap.place(root, Vector3((i - 6) * 0.75, 0, -6.0), ids[i], Scrap.roll_value(ids[i], 1, rng), ui)
+	cam.position = Vector3(0, 1.4, 1.6)
+	cam.look_at(Vector3(0, 0.7, -3.5), Vector3.UP)
+	for t in 10:
+		for m in models:
+			MobModels.animate(m, t * 0.1, 0.0, "idle", 0.0)
+		await get_tree().process_frame
+	await _snap("lineup")
+	ui.show_hud(true)
+	ui.set_sock(true)
+	await _snap("sock_face")
+	ui.set_sock(false)
+	# dance emote, third person
+	var p := Player.new()
+	p.ui = ui
+	root.add_child(p)
+	p.setup_for_run("dungeon")
+	p.global_position = Vector3(0, 0.1, 0)
+	p.hp = p.max_hp
+	await _frames(4)
+	for k in 3:
+		p._start_emote()
+		p._emote_kind = k
+		for i in 20:
+			await get_tree().process_frame
+		await _snap("dance_%d" % k)
+		p._end_emote()
+		p._emote_cd = 0.0

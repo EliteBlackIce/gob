@@ -266,6 +266,7 @@ static func animate(model: Node3D, speed01: float, t: float, carrying := false) 
 	var br := sin(t * 2.2)
 	var hips: Node3D = rig["Hips"]
 	hips.position.y = 14 * S + absf(sin(ph)) * 0.035 * a + br * 0.004
+	hips.rotation.y = 0.0
 	var spine: Node3D = rig["Spine"]
 	spine.rotation = Vector3(0.06 + 0.16 * a + (0.12 if carrying else 0.0), -sw * 0.12 * a, sw * 0.04 * a)
 	spine.scale = Vector3(1.0, 1.0 + br * 0.01, 1.0)
@@ -296,6 +297,40 @@ static func pose_kick(model: Node3D, k: float) -> void:
 	(rig["LegR"] as Node3D).rotation.x = -1.55 * k
 	(rig["LegL"] as Node3D).rotation.x = 0.2 * k
 	(rig["Spine"] as Node3D).rotation.x -= 0.22 * k
+
+
+## Emotes: 0 jig, 1 floss, 2 spin.
+static func pose_dance(model: Node3D, t: float, kind: int) -> void:
+	var rig := rig_of(model)
+	var hips: Node3D = rig["Hips"]
+	var spine: Node3D = rig["Spine"]
+	var al: Node3D = rig["ArmL"]
+	var ar: Node3D = rig["ArmR"]
+	var ll: Node3D = rig["LegL"]
+	var lr: Node3D = rig["LegR"]
+	var b := t * 9.0
+	match kind:
+		0:
+			hips.position.y = 14 * S + absf(sin(b)) * 0.12
+			ll.rotation.x = maxf(0.0, sin(b)) * -1.1
+			lr.rotation.x = maxf(0.0, -sin(b)) * -1.1
+			al.rotation = Vector3(0, 0, 2.4 + sin(b * 2.0) * 0.3)
+			ar.rotation = Vector3(0, 0, -2.4 - sin(b * 2.0 + 1.0) * 0.3)
+			spine.rotation = Vector3(0.05, 0.0, sin(b) * 0.15)
+		1:
+			var f := sin(t * 11.0)
+			hips.position.y = 14 * S
+			hips.rotation.y = f * 0.35
+			al.rotation = Vector3(0.4 * f, 0, 0.5 - 0.9 * f)
+			ar.rotation = Vector3(-0.4 * f, 0, -0.5 - 0.9 * f)
+			spine.rotation = Vector3(0.1, -f * 0.3, 0.0)
+		2:
+			hips.position.y = 14 * S + absf(sin(b * 0.5)) * 0.08
+			hips.rotation.y = t * 14.0
+			al.rotation = Vector3(0, 0, 1.55)
+			ar.rotation = Vector3(0, 0, -1.55)
+			ll.rotation.x = 0.0
+			lr.rotation.x = 0.0
 
 
 static func pose_wave(model: Node3D, t: float) -> void:

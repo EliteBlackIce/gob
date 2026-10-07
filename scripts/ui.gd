@@ -425,6 +425,51 @@ func _build_hud() -> void:
 	_hud.visible = false
 
 
+var _sock_ov: Control = null
+
+
+## A Ceiling Sock is on your face: chunky knitted overlay with two eye holes.
+func set_sock(on: bool) -> void:
+	if on and _sock_ov == null:
+		_sock_ov = Control.new()
+		_sock_ov.set_anchors_preset(Control.PRESET_FULL_RECT)
+		_sock_ov.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		var img := Image.create(64, 36, false, Image.FORMAT_RGBA8)
+		for y in 36:
+			for x in 64:
+				var c := Color("#c8282a") if (y / 3) % 2 == 0 else Color("#efe6d2")
+				if (x + y) % 4 == 0:
+					c = c.darkened(0.12)                       # knit texture
+				var a := 1.0
+				for e in [Vector2(23, 16), Vector2(41, 16)]:
+					var dx: float = (x + 0.5 - e.x) / 6.5
+					var dy: float = (y + 0.5 - e.y) / 4.5
+					var r: float = dx * dx + dy * dy
+					if r < 1.0:
+						a = 0.0
+					elif r < 1.5:
+						c = Color("#3a1414")
+				img.set_pixel(x, y, Color(c.r, c.g, c.b, a))
+		var tr := TextureRect.new()
+		tr.texture = ImageTexture.create_from_image(img)
+		tr.stretch_mode = TextureRect.STRETCH_SCALE
+		tr.set_anchors_preset(Control.PRESET_FULL_RECT)
+		tr.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		tr.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_sock_ov.add_child(tr)
+		var l := _label("THERE IS A SOCK ON YOUR FACE!\n[LMB] punch it     [SHIFT] roll it off", 24, Color("#ffffff"), true, _sock_ov)
+		l.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
+		l.offset_left = -400
+		l.offset_right = 400
+		l.offset_top = -210
+		l.offset_bottom = -140
+		l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		_hud.add_child(_sock_ov)
+		_hud.move_child(_sock_ov, 1)
+	if _sock_ov != null:
+		_sock_ov.visible = on
+
+
 func show_hud(v: bool) -> void:
 	_hud.visible = v
 
@@ -451,6 +496,7 @@ func configure_hud(mode: Variant) -> void:
 	var island_mode: bool = str(mode) == "route"
 	combat.dungeon = null
 	combat.boss = null
+	set_sock(false)
 	combat.objective = ""
 	_dest.visible = island_mode
 	_compass.visible = island_mode
@@ -1001,7 +1047,7 @@ func show_options(on_done: Callable, dim := false) -> void:
 		Game.settings["camcorder"] = not Game.settings["camcorder"]
 		Game.save_settings()
 		upd.call())
-	var ctl := _label("WASD move  SPACE jump  E interact  TAB pack  LMB attack  RMB block\nSHIFT roll  F kick  Q bottle  R grog  Z holler  V scan  C clip", 16, Color("#a0a0a0"), true, vb)
+	var ctl := _label("WASD move  SPACE jump  E interact  TAB pack  LMB attack  RMB block\nSHIFT roll  F kick  Q bottle  R grog  Z holler  V scan  B dance", 16, Color("#a0a0a0"), true, vb)
 	ctl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_button("Done", vb, func():
 		close_modal(false)

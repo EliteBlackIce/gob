@@ -34,9 +34,33 @@ func _process(delta: float) -> void:
 		_update_watcher(delta)
 
 
+const INTERCOM := [
+	"ATTENTION EMPLOYEES: the dungeon is NOT a break room.",
+	"Reminder: the quota is due in %d day%s. No pressure. (Pressure.)",
+	"Whoever keeps feeding the mimics: stop.",
+	"Fun fact: dying is still billed to your account.",
+	"The lawn gnomes are not company property. Do not stop looking at them.",
+	"Lost and found: one sock. Please do not look up.",
+	"Scrap counts 20% extra at the desk. That's called GENEROSITY.",
+	"If you hear a kazoo, no you didn't.",
+	"Today's safety tip: landmines go off when you step OFF them. Plan accordingly.",
+	"Someone left a Haunted Doll in the break room. It is now YOUR doll.",
+	"Employee of the month is still vacant. Make me proud. Or don't. I'm busy.",
+]
+
+
 func _fire() -> void:
-	var pick := _rng.randi() % 5
+	var pick := _rng.randi() % 7
 	match pick:
+		5:
+			_intercom()
+			return
+		6:
+			if int(dungeon.get("tier")) >= 2:
+				_lights_out()
+			else:
+				_intercom()
+			return
 		0:
 			_flicker()
 		1:
@@ -50,6 +74,26 @@ func _fire() -> void:
 				_spawn_watcher()
 			else:
 				_flicker()
+
+
+func _intercom() -> void:
+	var line: String = INTERCOM[_rng.randi() % INTERCOM.size()]
+	if line.contains("%d"):
+		var dl := Game.quota_days_left()
+		line = line % [dl, "" if dl == 1 else "s"]
+	Sfx.play("bell", -6.0, 1.3)
+	if ui != null:
+		ui.toast("GRUBNIK (intercom): \"%s\"" % line, Color("#ffd89a"))
+
+
+func _lights_out() -> void:
+	_caption("[the power goes out]")
+	Sfx.play("thump", 0.0, 0.5)
+	dungeon.call("blackout", 12.0)
+	await get_tree().create_timer(12.0, false).timeout
+	if is_instance_valid(player) and not player.dead:
+		_caption("[the power flickers back on]")
+		Sfx.play("blip", -4.0)
 
 
 func _caption(text: String) -> void:
@@ -75,17 +119,7 @@ func _steps() -> void:
 func _flicker() -> void:
 	_caption("[the lights flicker]")
 	Sfx.play("thump", -6.0)
-	var lights: Array = dungeon.get("_lights")
-	var hit: Array = []
-	for l in lights:
-		var node := l["light"] as Light3D
-		if node != null and is_instance_valid(node) and node.global_position.distance_to(player.global_position) < 24.0:
-			hit.append([node, node.light_energy])
-			node.light_energy = 0.0
-	await get_tree().create_timer(0.7, false).timeout
-	for h in hit:
-		if is_instance_valid(h[0]):
-			h[0].light_energy = h[1]
+	dungeon.call("blackout", 0.7)
 
 
 func _spawn_watcher() -> void:

@@ -46,6 +46,11 @@ var model: Node3D
 var rig: Node3D
 var arm: SpringArm3D
 var cam: Camera3D
+var latched_sock: Mob = null
+var _emote_t := -1.0
+var _emote_kind := 0
+var _emote_cd := 0.0
+const EMOTE_TIME := 2.6
 var view: Viewmodel
 var motes: CPUParticles3D
 var cam_override: Node3D = null
@@ -161,6 +166,41 @@ func _input(event: InputEvent) -> void:
 		pitch = clampf(pitch - event.relative.y * MOUSE_SENS * float(Game.settings["sens"]), -1.5, 1.5)
 
 
+const EMOTE_LINES := ["*does the goblin jig*", "*flosses aggressively*", "*spins for no reason*"]
+
+
+## B: a little dance. The camera swings round to show it off, and anything nearby is too baffled to fight.
+func _start_emote() -> void:
+	_emote_t = 0.0
+	_emote_kind = randi() % 3
+	_emote_cd = 8.0
+	blocking = false
+	cam.cull_mask = cam.cull_mask | 2
+	view.visible = false
+	Sfx.play(["kazoo", "honk", "squeak"][_emote_kind], 0.0, 1.0)
+	FloatText.spawn(get_parent(), global_position + Vector3(0, 2.3, 0), EMOTE_LINES[_emote_kind], Color("#ffe27a"), 1.0)
+	if mode == "dungeon":
+		var baffled := 0
+		for n in get_tree().get_nodes_in_group("mob"):
+			var m := n as Mob
+			if m != null and not m.dead and not m.is_boss and m.awake and m.global_position.distance_to(global_position) < 8.0:
+				m.stun(1.6)
+				FloatText.spawn(get_parent(), m.global_position + Vector3(0, m.body_h * m.base_scale + 0.6, 0), "???", Color("#ffe97a"), 1.0)
+				baffled += 1
+		if baffled >= 3:
+			Game.moment("DANCED %d MONSTERS INTO CONFUSION" % baffled)
+
+
+func _end_emote() -> void:
+	_emote_t = -1.0
+	cam.cull_mask = cam.cull_mask & ~2
+	view.visible = true
+
+
+func is_emoting() -> bool:
+	return _emote_t >= 0.0
+
+
 func _locked() -> bool:
 	return frozen or dead or (ui != null and ui.modal_open)
 
@@ -195,7 +235,12 @@ func _physics_process(delta: float) -> void:
 	_tick_vitals(delta)
 
 	var in2 := Vector2.ZERO
-	if not locked:
+	_emote_cd = maxf(0.0, _emote_cd - delta)
+	if _emote_t >= 0.0:
+		_emote_t += delta
+		if _emote_t >= EMOTE_TIME or dead:
+			_end_emote()
+	if not locked and _emote_t < 0.0:
 		in2 = Input.get_vector("move_left", "move_right", "move_forward", "move_back")
 	var dir := Vector3(in2.x, 0, in2.y).rotated(Vector3.UP, yaw)
 
@@ -267,12 +312,16 @@ func _physics_process(delta: float) -> void:
 		GoblinModel.pose_kick(model, clampf(_kick_anim / 0.25, 0.0, 1.0))
 	if _atk_t >= 0.0:
 		GoblinModel.pose_swing(model, clampf(_atk_t / _atk_dur, 0.0, 1.0))
+	if _emote_t >= 0.0:
+		GoblinModel.pose_dance(model, _emote_t, _emote_kind)
 	var roll_k := clampf(_roll_t / ROLL_TIME, 0.0, 1.0) if _roll_t >= 0.0 else 0.0
 	view.set_state(speed01, carried != null, bottles > 0 and mode != "hub", delta, blocking, roll_k)
 
-	if not locked:
+	if not locked and _emote_t < 0.0:
 		_actions(delta)
 		_scan_interactables()
+		if Input.is_action_just_pressed("emote") and _emote_cd <= 0.0 and is_on_floor() and carried == null and mode != "route":
+			_start_emote()
 	else:
 		blocking = false
 		interact_target = null
@@ -335,6 +384,8 @@ func _start_roll(dir: Vector3) -> void:
 		d = _forward()
 	_roll_dir = d.normalized()
 	_roll_t = 0.0
+	if latched_sock != null and is_instance_valid(latched_sock):
+		latched_sock.sock_knock_off()
 	_roll_cd = 1.0 * float(stats["roll_cd_mult"]) + ROLL_TIME
 	invuln = maxf(invuln, IFRAMES + (0.08 if Game.has_skill("roll_master") else 0.0))
 	_fov_kick = 16.0
@@ -483,9 +534,11 @@ func _resolve_swing() -> void:
 	var origin := global_position
 	var hits := 0
 	var targets: Array = []
+	if latched_sock != null and is_instance_valid(latched_sock) and not latched_sock.dead:
+		targets.append(latched_sock)          # you can always punch the sock on your face
 	for m in get_tree().get_nodes_in_group("mob"):
 		var mob := m as Mob
-		if mob == null or mob.dead:
+		if mob == null or mob.dead or mob == latched_sock:
 			continue
 		var dv := mob.global_position - origin
 		dv.y = 0.0
@@ -784,6 +837,8 @@ func _dodge_feedback() -> void:
 
 
 func _apply_hit(dir: Vector3, force: float, amount: float, cause: String, src: Node) -> String:
+	if _emote_t >= 0.0:
+		_end_emote()
 	var shown := maxf(1.0, amount)
 	hp -= shown
 	dmg_taken += shown
@@ -792,6 +847,11 @@ func _apply_hit(dir: Vector3, force: float, amount: float, cause: String, src: N
 		parcel_cond = maxf(0.0, parcel_cond - shown * 0.12 * pad)
 	if carried != null:
 		carried.damage(18.0, "got in the way of a hit")
+	if mode == "dungeon" and not Game.scrap.is_empty():
+		for c in Game.scrap_take_hit():
+			if ui != null:
+				ui.toast("Your %s cracked! (-%d)" % [c[0], c[1]], Color("#ff9a7a"))
+			Sfx.play("pop", -2.0, 1.6)
 	FloatText.spawn(get_parent(), global_position + Vector3(0, 1.9, 0), str(int(round(shown))), Color("#ff6a5a"), 1.1)
 	if hp <= 0.0:
 		if Game.has_skill("second_wind") and not second_wind_used:
@@ -891,9 +951,12 @@ func _update_camera(delta: float) -> void:
 		pitch_extra += (sin(ak * PI) * 0.03) * (2.0 if combo == 3 else 1.0)
 		roll += sin(ak * PI) * 0.025 * (1.0 if combo % 2 == 0 else -1.0)
 	roll += _hit_react * sin(_anim_t * 40.0) * 0.03
-	rig.rotation = Vector3(pitch + pitch_extra, yaw, roll)
+	if _emote_t >= 0.0:
+		rig.rotation = Vector3(-0.28, yaw + PI, 0.0)
+	else:
+		rig.rotation = Vector3(pitch + pitch_extra, yaw, roll)
 	cam.h_offset = randf_range(-1, 1) * shake * 0.12
 	cam.v_offset = randf_range(-1, 1) * shake * 0.12
 	_fov_kick = lerpf(_fov_kick, 0.0, 1.0 - exp(-6.0 * delta))
 	cam.fov = float(Game.settings["fov"]) + 6.0 * speed01 + _fov_kick
-	arm.spring_length = lerpf(arm.spring_length, cam_dist, 1.0 - exp(-8.0 * delta))
+	arm.spring_length = lerpf(arm.spring_length, cam_dist if _emote_t < 0.0 else 3.0, 1.0 - exp(-8.0 * delta))

@@ -116,6 +116,9 @@ static func build(kind: String, theme: String) -> Node3D:
 				_mi(kl, parts["leg"])
 				var ka := _joint(kb, rig, "Arm" + tag2, Vector3(side * 5.5 * S, 8 * S, 0))
 				_mi(ka, parts["arm"])
+		"sock":
+			var sb := _joint(root, rig, "Body", Vector3(0, 0, 0))
+			_mi(sb, parts["body"])
 		"chest":
 			var cb := _joint(root, rig, "Body", Vector3(0, 3 * S, 0))
 			_mi(cb, parts["body"])
@@ -167,6 +170,12 @@ static func _make_parts(kind: String, pal: Dictionary) -> Dictionary:
 			d = _mimic(acc)
 		"mimic_king":
 			d = _mimic(acc, true)
+		"gnome":
+			d = _gnome()
+		"thief":
+			d = _thief(main, acc)
+		"sock":
+			d = _sock(glow)
 		"auditor":
 			d = _auditor()
 		"landlord":
@@ -581,6 +590,94 @@ static func _landlord() -> Dictionary:
 		"leg_x": 4.4, "weapon": _b(sack, 0, 0, 0), "weapon_l": _b(keys, 0, 0, 0)}
 
 
+## Lawn Gnome: red pointy hat, big white beard, blue shirt, tiny shovel. Only moves when unwatched.
+static func _gnome() -> Dictionary:
+	var skin := Color("#f0c8a0")
+	var red := Color("#d8302a")
+	var beard := Color("#f4f2ea")
+	var h := Vox.new(S)
+	h.box(0, 0, 0, 10, 8, 10, skin, 0.03)
+	h.box(4, 3, 10, 6, 5, 12, Color("#e8a080"), 0.02)                         # round nose
+	for ex in [2, 6]:
+		h.box(ex, 5, 9, ex + 2, 6, 10, Color("#101010"), 0.0)                 # beady painted eyes
+	h.box(0, 0, 8, 10, 4, 11, beard, 0.03)                                    # beard
+	h.box(1, -3, 8, 9, 0, 11, beard, 0.03)
+	h.box(2, -6, 8, 8, -3, 10, beard.darkened(0.04), 0.03)
+	h.box(3, -8, 8, 7, -6, 10, beard.darkened(0.06), 0.03)
+	h.box(-1, 7, -1, 11, 9, 11, red, 0.03)                                    # hat brim
+	h.box(0, 9, 0, 10, 12, 10, red, 0.03)                                     # hat cone, stepped
+	h.box(1, 12, 1, 9, 15, 9, red.darkened(0.05), 0.03)
+	h.box(2, 15, 2, 8, 18, 8, red, 0.03)
+	h.box(3, 18, 3, 7, 21, 7, red.darkened(0.06), 0.03)
+	h.box(4, 21, 3, 6, 23, 5, red, 0.03)
+	h.box(4, 22, 1, 6, 24, 3, red.darkened(0.1), 0.03)                        # droopy tip
+	var t := Vox.new(S)
+	t.box(0, 0, 0, 10, 10, 6, Color("#3a6ad0"), 0.03)                         # blue shirt
+	t.box(0, 0, 0, 10, 2, 6, Color("#4a2e1a"), 0.03)                          # belt
+	t.box(4, 0, 6, 6, 2, 7, Color("#e6b840"), 0.02)
+	var arm := Vox.new(S)
+	arm.box(0, -8, 0, 3, 0, 3, Color("#3a6ad0"), 0.03)
+	arm.box(0, -10, 0, 3, -8, 3, skin, 0.03)
+	var leg := Vox.new(S)
+	leg.box(0, 3, 0, 3, 13, 3, Color("#5a3a22"), 0.03)                        # brown trousers
+	leg.box(-1, 0, -1, 4, 3, 6, Color("#2a1a12"), 0.03)                       # boots
+	var shovel := Vox.new(S)
+	shovel.box(0, 0, 0, 1, 10, 1, Color("#8a5a2e"), 0.03)
+	shovel.box(-1, 10, -1, 2, 14, 1, Color("#9aa0aa"), 0.03)
+	return {"head": _b(h, 5, 0, 5), "torso": _b(t, 5, 0, 3), "arm": _b(arm, 1.5, 0, 1.5), "leg": _b(leg, 1.5, 13, 1.5),
+		"shoulder": 6.5, "weapon": _b(shovel, 0.5, 0, 0.5)}
+
+
+## Sack Thief: hunched, hooded, striped jumper and an enormous swag bag.
+static func _thief(main: Color, acc: Color) -> Dictionary:
+	var skin := Color("#8ab04a")
+	var hood := Color("#2a2630")
+	var h := Vox.new(S)
+	h.box(0, 0, 0, 9, 9, 9, skin, 0.04)
+	h.box(-1, 2, -1, 10, 11, 7, hood, 0.04)                                   # hood
+	h.box(0, 9, 7, 9, 11, 9, hood, 0.04)
+	h.box(0, 5, 8, 9, 7, 10, Color("#101010"), 0.0)                           # burglar mask
+	for ex in [1, 6]:
+		h.box(ex, 5, 9, ex + 2, 7, 10, Color("#fff0a0", 0.4), 0.0)            # shifty glowing eyes
+	h.box(3, 1, 9, 6, 2, 10, Color("#3a1010"), 0.0)                           # sly grin
+	h.box(4, 2, 9, 5, 5, 11, skin.darkened(0.1), 0.03)                        # long nose
+	h.box(-3, 4, 3, -1, 6, 5, skin, 0.03)                                     # pointy ears
+	h.box(10, 4, 3, 12, 6, 5, skin, 0.03)
+	var t := Vox.new(S)
+	for y in 10:
+		t.box(0, y, 0, 9, y + 1, 5, Color("#2a2a2a") if y % 2 == 0 else Color("#e8e4d8"), 0.02)   # striped jumper
+	var arm := Vox.new(S)
+	for y in range(-10, 0):
+		arm.box(0, y, 0, 3, y + 1, 3, Color("#2a2a2a") if (-y) % 2 == 0 else Color("#e8e4d8"), 0.02)
+	arm.box(0, -12, 0, 3, -10, 3, Color("#1a1a1a"), 0.02)                     # gloves
+	var leg := Vox.new(S)
+	leg.box(0, 3, 0, 3, 13, 3, Color("#22222a"), 0.03)
+	leg.box(-1, 0, -1, 4, 3, 5, Color("#141414"), 0.03)
+	var sack := Vox.new(S)
+	sack.ellipsoid(0, 0, 0, 6.5, 7.0, 5.0, Color("#b89a6a"), 0.05)
+	sack.box(-2, 6, -2, 2, 9, 2, Color("#9a7a4a"), 0.04)                      # tied neck
+	sack.box(-3, -1, 4, 3, 1, 5, Color("#e6b840"), 0.0)                       # "$" patch
+	sack.box(-1, -3, 4, 1, 3, 5, Color("#e6b840"), 0.0)
+	return {"head": _b(h, 4.5, 0, 4.5), "torso": _b(t, 4.5, 0, 2.5), "arm": _b(arm, 1.5, 0, 1.5), "leg": _b(leg, 1.5, 13, 1.5),
+		"shoulder": 6.0, "back": _b(sack, 0, 0, 3)}
+
+
+## Ceiling Sock: a long striped sock with googly eyes. Hangs, drops, smothers.
+static func _sock(glow: Color) -> Dictionary:
+	var v := Vox.new(S)
+	for y in 16:
+		var c := Color("#d8302a") if (y / 2) % 2 == 0 else Color("#f2ece0")
+		v.box(-3, -y - 1, -3, 3, -y, 3, c, 0.03)
+	v.box(-3, -19, -3, 3, -16, 6, Color("#f2ece0"), 0.03)                     # heel + toe
+	v.box(-2, -18, 6, 2, -16, 7, Color("#d8302a"), 0.03)
+	v.box(-3, 0, -3, 3, 2, 3, Color("#e8e0c8"), 0.03)                         # ribbed cuff
+	for ex in [-2, 1]:
+		v.box(ex, -6, 3, ex + 2, -4, 4, Color("#ffffff"), 0.0)                # googly eyes
+		v.box(ex + (1 if ex < 0 else 0), -6, 4, ex + 1 + (1 if ex < 0 else 0), -5, 5, Color("#101010"), 0.0)
+	v.box(-1, -9, 3, 1, -8, 4, Color(glow.r, glow.g, glow.b, 0.5), 0.0)      # tiny glowing mouth
+	return {"body": _b(v, 0, 0, 0)}
+
+
 static func _rat(main: Color, acc: Color) -> Dictionary:
 	var fur := Color("#7a6a5c").lerp(main, 0.15)
 	var belly := fur.lightened(0.22)
@@ -811,6 +908,10 @@ static func animate(root: Node3D, t: float, speed01: float, pose: String, k: flo
 			_anim_keg(rig, t, sw, speed01, pose, k)
 		"chest":
 			_anim_chest(rig, t, speed01, pose, k)
+		"sock":
+			var sb: Node3D = rig["Body"]
+			sb.rotation = Vector3(sin(t * 2.1) * 0.12, t * 0.3 if pose != "latched" else 0.0, sin(t * 1.7) * 0.12)
+			sb.scale = Vector3(1.0, 1.0 + sin(t * 9.0) * 0.08, 1.0) if pose == "latched" else Vector3.ONE
 
 
 static func _anim_humanoid(rig: Dictionary, kind: String, t: float, sw: float, sp: float, pose: String, k: float) -> void:

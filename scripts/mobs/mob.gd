@@ -64,6 +64,13 @@ var _push := Vector3.ZERO
 var _uid_beep := 0.0
 var _heal_t := 0.0
 var _bark_t := randf_range(3.0, 9.0)
+var stolen: Dictionary = {}          # Sack Thief: the scrap it is running off with
+var _flee_t := 0.0
+var _step_t := 0.0
+var _sock_state := "ceiling"         # Ceiling Sock: ceiling | drop | latched | floor
+var _sock_anchor := Vector3.ZERO
+var _sock_tick := 0.0
+var _thread: MeshInstance3D = null
 var wake_in := -1.0               # >0: wake up after this many seconds (spawn-in delay)
 
 
@@ -125,6 +132,17 @@ func _ready() -> void:
 		motion_mode = CharacterBody3D.MOTION_MODE_FLOATING
 	if kind == "ghost":
 		collision_mask = 0
+	if str(d["ai"]) == "ceiling":
+		collision_layer = 0
+		collision_mask = 0
+		awake = true
+		_thread = MeshInstance3D.new()
+		var bm := BoxMesh.new()
+		bm.size = Vector3(0.03, 2.0, 0.03)
+		_thread.mesh = bm
+		_thread.material_override = Fx._unshaded(Color("#d8d0c0"), 1.0, 0.0)
+		_thread.position = Vector3(0, 1.0, 0)
+		add_child(_thread)
 
 
 func _build_model() -> void:
@@ -247,8 +265,11 @@ func _physics_process(delta: float) -> void:
 	_statuses(delta)
 	if dead:
 		return
+	if str(d["ai"]) == "ceiling":
+		_sock_ai(delta)
+		return
 	if not awake:
-		if dist_to_player() < 14.0 and room == null:
+		if dist_to_player() < (24.0 if str(d["ai"]) == "statue" else 14.0) and room == null:
 			wake()
 		_idle_physics(delta)
 		_animate("idle", 0.0, 0.0)
@@ -383,6 +404,12 @@ func _think(delta: float) -> void:
 	var to := dir_to_player()
 	var atk: String = str(d["atk"])
 	var rng_attack: float = float(d["range"])
+	if str(d["ai"]) == "statue":
+		_statue(delta, dist, to)
+		return
+	if str(d["ai"]) == "thief" and (not stolen.is_empty() or state == "chase" and _thief_wants(dist)):
+		_thief_ai(delta, dist, to)
+		return
 	match state:
 		"chase", "idle":
 			_chase(delta, dist, to, atk, rng_attack)
@@ -793,6 +820,13 @@ func _die(info: Dictionary) -> void:
 			player.take_hit(dir_to_player() * -1.0, 7.0, dmg * 0.8, "a volatile " + String(kind), self)
 	if str(d.get("split", "")) != "" and not suicide:
 		_split()
+	if not stolen.is_empty():
+		Scrap.place(get_parent(), Vector3(global_position.x, global_position.y, global_position.z), str(stolen["id"]), int(stolen["value"]), player.ui if player != null else null)
+		if player != null and player.ui != null:
+			player.ui.toast("The thief dropped your %s!" % Scrap.DB[str(stolen["id"])]["name"], Color("#ffe27a"))
+		stolen = {}
+	if _sock_state == "latched":
+		_sock_release()
 	died.emit(self, info)
 	_death_anim()
 
@@ -834,3 +868,188 @@ func _death_anim() -> void:
 	tw.tween_property(model, "rotation:x", -1.4, 0.25)
 	tw.parallel().tween_property(model, "scale", model.scale * Vector3(1.0, 0.2, 1.0), 0.35)
 	tw.tween_callback(queue_free)
+
+
+# ------------------------------------------------------------------ roamers (Lethal-Company-style weirdos)
+
+## True when the player's camera has this mob on screen with nothing in the way.
+func watched() -> bool:
+	if player == null or not is_instance_valid(player) or player.cam == null or player.dead:
+		return false
+	var cam := player.cam
+	var target := global_position + Vector3(0, body_h * base_scale * 0.6, 0)
+	var to := target - cam.global_position
+	var dist := to.length()
+	if dist > 45.0 or dist < 0.01:
+		return false
+	if (-cam.global_basis.z).dot(to / dist) < 0.55:
+		return false
+	var q := PhysicsRayQueryParameters3D.create(cam.global_position, target, 1)
+	q.exclude = [player.get_rid(), get_rid()]
+	return get_world_3d().direct_space_state.intersect_ray(q).is_empty()
+
+
+## Lawn Gnome: frozen mid-stride while you look at it, sprints at you the moment you don't.
+func _statue(delta: float, dist: float, to: Vector3) -> void:
+	if watched():
+		velocity.x = 0.0
+		velocity.z = 0.0
+		velocity.y -= GRAVITY * delta
+		move_and_slide()
+		_speed_now = 0.0
+		return
+	face(to, delta, 30.0)
+	_move(to, speed, delta, 40.0)
+	_animate("walk", 0.0, 1.0)
+	_step_t -= delta
+	if _step_t <= 0.0:
+		_step_t = 0.3
+		Sfx.play("step", clampf(-2.0 - dist * 0.9, -32.0, -2.0), 1.5)
+	if dist < float(d["range"]) and _cd <= 0.0:
+		_cd = float(d["cd"])
+		_hurt_player(dmg, to, 7.0)
+		Sfx.play("thud", 0.0, 1.3)
+
+
+func _nearest_scrap(radius: float) -> Node3D:
+	var best: Node3D = null
+	var bd := radius
+	for n in get_tree().get_nodes_in_group("scannable"):
+		if not (n is Scrap) or not is_instance_valid(n):
+			continue
+		var dd := (n as Node3D).global_position.distance_to(global_position)
+		if dd < bd:
+			bd = dd
+			best = n
+	return best
+
+
+func _thief_wants(dist: float) -> bool:
+	return not Game.scrap.is_empty() or _nearest_scrap(14.0) != null
+
+
+## Sack Thief: goes for your sack (or loose scrap), grabs one thing and legs it.
+func _thief_ai(delta: float, dist: float, to: Vector3) -> void:
+	if stolen.is_empty():
+		var target_dir := to
+		var floor_scrap: Node3D = null
+		if Game.scrap.is_empty():
+			floor_scrap = _nearest_scrap(14.0)
+			if floor_scrap != null:
+				var dv := floor_scrap.global_position - global_position
+				dv.y = 0.0
+				target_dir = dv.normalized()
+				if dv.length() < 1.0:
+					stolen = {"id": (floor_scrap as Scrap).id, "value": (floor_scrap as Scrap).value}
+					floor_scrap.queue_free()
+					_flee_t = 0.0
+					FloatText.spawn(get_parent(), global_position + Vector3(0, 1.8, 0), "MINE!", Color("#ffe27a"), 1.2)
+					Sfx.play("giggle", -4.0, 1.2)
+					return
+		face(target_dir, delta)
+		_move(target_dir, speed * 1.15, delta)
+		_animate("walk", 0.0)
+		if floor_scrap == null and dist < float(d["range"]) and _cd <= 0.0 and not Game.scrap.is_empty():
+			var i := randi() % Game.scrap.size()
+			stolen = Game.scrap[i]
+			Game.scrap.remove_at(i)
+			Game.touch_gear()
+			_cd = 1.0
+			_flee_t = 0.0
+			Sfx.play("giggle", 0.0, 1.2)
+			FloatText.spawn(get_parent(), global_position + Vector3(0, 1.8, 0), "YOINK!", Color("#ffe27a"), 1.4)
+			if player.ui != null:
+				player.ui.toast("The Sack Thief nicked your %s! Catch it!" % Scrap.DB[str(stolen["id"])]["name"], Color("#ff9a7a"))
+		return
+	_flee_t += delta
+	var away := -to
+	away = (away + away.cross(Vector3.UP) * sin(_anim_t * 1.3) * 0.7).normalized()
+	face(away, delta)
+	_move(away, speed * 1.25, delta)
+	_animate("walk", 0.0, 1.0)
+	if _flee_t > 22.0 and dist > 18.0:
+		if player.ui != null:
+			player.ui.toast("The Sack Thief got away with your %s." % Scrap.DB[str(stolen["id"])]["name"], Color("#c8b890"))
+		stolen = {}
+		dead = true
+		Style.burst(get_parent(), global_position + Vector3(0, 0.6, 0), Color("#5a5a6a"), 12, 3.0, 0.12, 0.6)
+		queue_free()
+
+
+## Ceiling Sock: dangles on a thread, drops on your face, and you fight it blind.
+func _sock_ai(delta: float) -> void:
+	if _sock_anchor == Vector3.ZERO:
+		_sock_anchor = global_position
+	_cd = maxf(0.0, _cd - delta)
+	var dist := dist_to_player()
+	if _thread != null:
+		_thread.visible = _sock_state == "ceiling"
+	match _sock_state:
+		"ceiling":
+			global_position = _sock_anchor
+			_animate("idle", 0.0, 0.0)
+			if dist < 1.5 and _cd <= 0.0 and not player.dead and player.latched_sock == null and player.mode == "dungeon":
+				_sock_state = "drop"
+				state_t = 0.0
+				Sfx.play("whoosh", -2.0, 0.6)
+		"drop":
+			state_t += delta
+			var head := player.global_position + Vector3(0, 2.15, 0)
+			global_position = global_position.lerp(head, clampf(state_t * 7.0, 0.0, 1.0))
+			if state_t > 0.25:
+				if player.is_rolling() or player.dead or player.latched_sock != null:
+					_sock_state = "floor"
+					stun_t = 1.0
+					return
+				_sock_state = "latched"
+				player.latched_sock = self
+				_sock_tick = 0.6
+				Sfx.play("squish", 0.0, 0.6)
+				if player.ui != null:
+					player.ui.set_sock(true)
+		"latched":
+			global_position = player.global_position + Vector3(0, 2.15, 0)
+			rotation.y = player.yaw
+			_animate("latched", 0.0, 0.0)
+			_sock_tick -= delta
+			if _sock_tick <= 0.0:
+				_sock_tick = 0.6
+				player.take_hit(Vector3.ZERO, 0.0, dmg, "smothered by a sock", self)
+			if player.dead:
+				_sock_release()
+		"floor":
+			var fy := _sock_anchor.y - hover
+			if stun_t > 0.0:
+				stun_t -= delta
+				global_position.y = move_toward(global_position.y, fy + 0.95, 12.0 * delta)
+				_animate("stun", 0.0, 0.0)
+				return
+			var to := dir_to_player()
+			global_position += to * speed * delta
+			global_position.y = fy + 0.95
+			face(to, delta)
+			_animate("idle", 0.0, 0.0)
+			if dist < 1.0 and _cd <= 0.0 and player.latched_sock == null:
+				_sock_state = "drop"
+				state_t = 0.0
+
+
+func _sock_release() -> void:
+	if player != null and is_instance_valid(player) and player.latched_sock == self:
+		player.latched_sock = null
+		if player.ui != null:
+			player.ui.set_sock(false)
+	if _sock_state == "latched":
+		_sock_state = "floor"
+		stun_t = 2.0
+		_cd = 2.5
+		if player != null and is_instance_valid(player):
+			global_position = player.global_position + Vector3(-sin(player.yaw), 0.0, -cos(player.yaw)) * 1.2 + Vector3(0, 1.0, 0)
+
+
+## Rolling shakes a sock off your face.
+func sock_knock_off() -> void:
+	if _sock_state != "latched":
+		return
+	_sock_release()
+	FloatText.spawn(get_parent(), global_position + Vector3(0, 0.6, 0), "SHAKEN OFF!", Color("#9fe6ff"), 1.1)

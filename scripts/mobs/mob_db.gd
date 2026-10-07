@@ -32,6 +32,13 @@ const KINDS := {
 		"h": 1.6, "r": 0.45, "xp": 9, "model": "humanoid", "pack": 1, "hover": 0.6},
 	"mimic": {"name": "Mimic", "ai": "walk", "atk": "swing", "hp": 95.0, "dmg": 22.0, "speed": 4.0, "range": 1.9, "windup": 0.45, "cd": 1.4,
 		"h": 1.0, "r": 0.6, "xp": 26, "model": "chest", "pack": 1},
+	# --- roamers: not part of room waves, they wander the floor (see Dungeon._spawn_roamers)
+	"gnome": {"name": "Lawn Gnome", "ai": "statue", "atk": "contact", "hp": 80.0, "dmg": 18.0, "speed": 8.0, "range": 1.4, "windup": 0.0, "cd": 1.1,
+		"h": 1.2, "r": 0.4, "xp": 16, "model": "humanoid", "pack": 1, "scale": 0.8},
+	"thief": {"name": "Sack Thief", "ai": "thief", "atk": "swing", "hp": 30.0, "dmg": 5.0, "speed": 5.4, "range": 1.6, "windup": 0.3, "cd": 1.2,
+		"h": 1.4, "r": 0.4, "xp": 10, "model": "humanoid", "pack": 1, "scale": 0.8},
+	"sock": {"name": "Ceiling Sock", "ai": "ceiling", "atk": "latch", "hp": 26.0, "dmg": 4.0, "speed": 2.6, "range": 1.3, "windup": 0.0, "cd": 1.0,
+		"h": 0.9, "r": 0.35, "xp": 7, "model": "sock", "pack": 1, "hover": 3.6},
 }
 
 ## weight tables per theme. Entries: [kind, weight, min_tier]
@@ -77,6 +84,8 @@ const BARKS := {
 	"golem": ["Rubble rubble.", "Clerical error.", "STAMP.", "*grinding noises*"],
 	"ghost": ["Boo. (formal)", "I'm Gary.", "Whooo ordered you?", "I've been dead for years, still no PTO"],
 	"mimic": ["Free chest!", "Open me ;)", "Not a mimic.", "Definitely a chest"],
+	"thief": ["Finders keepers!", "Ooh, shiny!", "Is that a DUCK?", "*rustles sack*", "Nothing to see here"],
+	"sock": ["*sniff*", "Hello, face!", "I've been in a boot for YEARS", "Snuggle time"],
 }
 const ELITE_BARKS := ["I'M A BIG DEAL", "Do you know who I AM?", "Middle management!", "I have a LANYARD"]
 const BOSS_BARKS := {

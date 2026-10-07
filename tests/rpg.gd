@@ -27,10 +27,16 @@ func _ready() -> void:
 	test_items()
 	test_stats_and_progress()
 	test_generator()
+	if "friend" in OS.get_cmdline_user_args():
+		await test_friend_slop()
+		print("\nRPG TEST: ", "PASS" if fails == 0 else "%d FAILURES" % fails)
+		get_tree().quit(1 if fails > 0 else 0)
+		return
 	await test_menus()
 	await test_arena_mobs()
 	await test_bosses()
 	await test_dungeon_runs()
+	await test_friend_slop()
 	print("\nRPG TEST: ", "PASS" if fails == 0 else "%d FAILURES" % fails)
 	get_tree().quit(1 if fails > 0 else 0)
 
@@ -286,7 +292,7 @@ func test_arena_mobs() -> void:
 				got_hit = true
 				break
 			p.invuln = 0.0
-		check(got_hit or kind in ["archer", "mushroom", "imp"], "%s attacks the player" % kind)
+		check(got_hit or kind in ["archer", "mushroom", "imp", "gnome", "sock"], "%s attacks the player" % kind)
 		if not got_hit:
 			check(m.state != "idle", "%s (ranged) is active" % kind)
 		# kill it
@@ -481,6 +487,11 @@ func test_dungeon_runs() -> void:
 	check(d2.player.dead and res2[0] != null and res2[0]["outcome"] == "died", "death ends the run")
 	d2.queue_free()
 	await frames(3)
+	Game.reset_save()
+
+
+func test_friend_slop() -> void:
+	print("== friend slop")
 	# --- friend-slop systems
 	Game.reset_save()
 	check(UI.snap_size(18) == 16 and UI.snap_size(26) == 24 and UI.snap_size(54) == 48, "font sizes snap to the pixel grid")
@@ -518,4 +529,100 @@ func test_dungeon_runs() -> void:
 	check(Game.scrap.size() == 1 and Game.scrap[0]["id"] == "kazoo", "picking scrap up fills the sack")
 	sc_root.queue_free()
 	await frames(3)
+	# --- roamers, landmines, scrap traits, emotes
 	Game.reset_save()
+	var ar := make_arena()
+	var aroot: Node3D = ar["root"]
+	var ap: Player = ar["player"]
+	ap.frozen = false
+	ap.yaw = 0.0
+	ap.pitch = 0.0
+	# lawn gnome: frozen while watched, sprints when you look away
+	var gn := Mob.make("gnome", "crypt", 2, [])
+	gn.position = Vector3(0, 0.1, -9.0)
+	aroot.add_child(gn)
+	gn.wake()
+	for i in 20:
+		await get_tree().physics_frame
+	var gp0 := gn.global_position
+	for i in 40:
+		await get_tree().physics_frame
+	var gmove := Vector2(gn.global_position.x - gp0.x, gn.global_position.z - gp0.z).length()
+	check(gn.watched() and gmove < 0.05, "lawn gnome freezes while you look at it (watched=%s moved=%.2f)" % [gn.watched(), gmove])
+	ap.yaw = PI
+	await frames(3)
+	for i in 40:
+		await get_tree().physics_frame
+	check(not gn.watched() and gn.global_position.distance_to(gp0) > 1.0, "lawn gnome moves when you look away")
+	gn.take_damage(99999.0, Vector3.FORWARD, {})
+	await frames(5)
+	ap.yaw = 0.0
+	# sack thief: steals from the sack, drops it when killed
+	Game.scrap = [{"id": "duck", "value": 40, "run": true}]
+	ap.global_position = Vector3(0, 0.1, 0)
+	var th := Mob.make("thief", "crypt", 1, [])
+	th.position = Vector3(0, 0.1, -1.2)
+	aroot.add_child(th)
+	th.wake()
+	var stole := false
+	for i in 240:
+		await get_tree().physics_frame
+		if not th.stolen.is_empty():
+			stole = true
+			break
+	check(stole and Game.scrap.is_empty(), "sack thief steals scrap from your sack")
+	th.take_damage(99999.0, Vector3.FORWARD, {})
+	await frames(5)
+	var dropped := false
+	for n in get_tree().get_nodes_in_group("scannable"):
+		if n is Scrap and (n as Scrap).id == "duck":
+			dropped = true
+			(n as Scrap)._grab(ap)
+	check(dropped and Game.scrap.size() == 1, "killing the thief drops what it stole")
+	# ceiling sock: drops on your face, roll shakes it off
+	var sk := Mob.make("sock", "crypt", 1, [])
+	sk.position = ap.global_position + Vector3(0.3, 3.6, 0.0)
+	aroot.add_child(sk)
+	for i in 40:
+		await get_tree().physics_frame
+	check(ap.latched_sock == sk and ui._sock_ov != null and ui._sock_ov.visible, "ceiling sock latches onto your face (state=%s)" % sk._sock_state)
+	ap._start_roll(Vector3.FORWARD)
+	await frames(3)
+	check(ap.latched_sock == null and (ui._sock_ov == null or not ui._sock_ov.visible), "rolling shakes the sock off")
+	sk.take_damage(99999.0, Vector3.FORWARD, {})
+	for i in 60:
+		await get_tree().physics_frame
+	# landmine: click on, boom off
+	ap.hp = ap.max_hp
+	ap.invuln = 0.0
+	var mn := Landmine.place(aroot, ap.global_position + Vector3(0, 0, -3.0), 40.0, ui)
+	ap.global_position = mn.global_position + Vector3(0, 0.1, 0)
+	await frames(4)
+	check(mn.armed and not mn.exploded, "landmine clicks when stepped on")
+	var hp_mine := ap.hp
+	ap.global_position += Vector3(1.5, 0, 0)
+	await frames(4)
+	check(not is_instance_valid(mn) and ap.hp < hp_mine, "landmine explodes when you step off")
+	# scrap traits
+	Game.scrap = [{"id": "anvil", "value": 80, "run": true}]
+	var heavy_mult := Game.scrap_speed_mult()
+	Game.scrap = [{"id": "duck", "value": 80, "run": true}]
+	check(heavy_mult < Game.scrap_speed_mult(), "heavy scrap slows you more")
+	Game.scrap = [{"id": "mirror", "value": 100, "run": true}]
+	Game.scrap_take_hit()
+	check(int(Game.scrap[0]["value"]) == 75, "fragile scrap cracks when you get hit")
+	# dance emote baffles nearby monsters
+	ap.hp = ap.max_hp
+	var sk2 := Mob.make("skeleton", "crypt", 1, [])
+	sk2.position = ap.global_position + Vector3(0, 0.1, -3.0)
+	aroot.add_child(sk2)
+	sk2.wake()
+	await frames(3)
+	ap._start_emote()
+	check(ap.is_emoting() and sk2.stun_t > 1.0, "dancing baffles nearby monsters")
+	for i in 200:
+		await get_tree().physics_frame
+	check(not ap.is_emoting(), "the dance ends by itself")
+	aroot.queue_free()
+	Game.scrap = []
+	await frames(3)

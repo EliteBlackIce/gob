@@ -180,7 +180,7 @@ func _setup_input() -> void:
 		"move_forward": [KEY_W, KEY_UP], "move_back": [KEY_S, KEY_DOWN],
 		"move_left": [KEY_A, KEY_LEFT], "move_right": [KEY_D, KEY_RIGHT],
 		"jump": [KEY_SPACE], "dash": [KEY_SHIFT], "interact": [KEY_E], "toss": [KEY_G],
-		"kick": [KEY_F], "scan": [KEY_V], "bottle": [KEY_Q], "grog": [KEY_R], "slap": [KEY_X], "pause": [KEY_ESCAPE], "clip": [KEY_C],
+		"kick": [KEY_F], "scan": [KEY_V], "emote": [KEY_B], "bottle": [KEY_Q], "grog": [KEY_R], "slap": [KEY_X], "pause": [KEY_ESCAPE], "clip": [KEY_C],
 		"inventory": [KEY_TAB, KEY_I], "ability": [KEY_Z],
 	}
 	for action in map:
@@ -265,7 +265,21 @@ func scrap_total() -> int:
 
 
 func scrap_speed_mult() -> float:
-	return maxf(0.78, 1.0 - 0.035 * float(scrap.size()))
+	var units := 0
+	for sc in scrap:
+		units += 3 if Scrap.DB.get(str(sc["id"]), {}).get("heavy", false) else 1
+	return maxf(0.7, 1.0 - 0.035 * float(units))
+
+
+## A hit rattles your sack: fragile scrap loses a quarter of its value. Returns what cracked.
+func scrap_take_hit() -> Array:
+	var cracked: Array = []
+	for sc in scrap:
+		if Scrap.DB.get(str(sc["id"]), {}).get("fragile", false):
+			var loss := maxi(1, int(round(float(sc["value"]) * 0.25)))
+			sc["value"] = maxi(1, int(sc["value"]) - loss)
+			cracked.append([str(Scrap.DB[str(sc["id"])]["name"]), loss])
+	return cracked
 
 
 ## Sell the whole sack at the desk. Scrap counts 20% extra toward the quota.

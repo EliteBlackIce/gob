@@ -85,6 +85,8 @@ var _ghosts := false
 var _portals: Array = []
 var _portals_for_exit: Array = []
 var _motes: Array = []
+var _noise_t := 10.0
+var _blackout_t := 0.0
 
 
 func _ready() -> void:
@@ -194,6 +196,8 @@ func _load_floor() -> void:
 	for r in rooms:
 		_make_gates(r)
 		_populate(r)
+	_spawn_roamers()
+	_place_mines()
 	_init_map()
 	var start := rooms[g.start_id]
 	player.global_position = start.world_center() + Vector3(0, 0.3, 0)
@@ -209,6 +213,59 @@ func _load_floor() -> void:
 
 
 # ---------------------------------------------------------------- populating rooms
+
+func _roamer_rooms() -> Array:
+	var pool: Array = []
+	for r in rooms:
+		if r.kind in ["start", "boss", "customer", "stairs"]:
+			continue
+		pool.append(r)
+	return pool
+
+
+## Lethal-Company-style weirdos that ignore the wave system: ceiling socks, a sack thief, lawn gnomes.
+func _spawn_roamers() -> void:
+	var pool := _roamer_rooms()
+	if pool.is_empty():
+		return
+	var socks := 1 + _rng.randi_range(0, 2) + (1 if tier >= 3 else 0)
+	for i in socks:
+		var r: RoomRT = pool[_rng.randi() % pool.size()]
+		_spawn_roamer("sock", _tile_pos(_random_tile(r, 1, 0.0)) + Vector3(0, float(MobDB.KINDS["sock"]["hover"]), 0))
+	if _rng.randf() < 0.65:
+		var r2: RoomRT = pool[_rng.randi() % pool.size()]
+		_spawn_roamer("thief", _tile_pos(_random_tile(r2, 1, 0.0)))
+	var gnomes := 0
+	if tier <= 1:
+		gnomes = 1 if _rng.randf() < 0.3 else 0
+	else:
+		gnomes = 1 + (1 if tier >= 3 and _rng.randf() < 0.5 else 0)
+	for i in gnomes:
+		var r3: RoomRT = pool[_rng.randi() % pool.size()]
+		_spawn_roamer("gnome", _tile_pos(_random_tile(r3, 1, 0.0)))
+
+
+func _spawn_roamer(kind_id: String, pos: Vector3) -> Mob:
+	var m := Mob.make(kind_id, theme, tier, mods, false)
+	content.add_child(m)
+	m.global_position = pos + Vector3(0, 0.05, 0)
+	m.rotation.y = _rng.randf() * TAU
+	m.died.connect(_on_mob_died)
+	return m
+
+
+func _place_mines() -> void:
+	var pool := _roamer_rooms()
+	if pool.is_empty():
+		return
+	var n := (1 if tier <= 1 else 2) + _rng.randi_range(0, 2)
+	for r in rooms:
+		if r.kind == "trap":
+			n += 2
+	var dmg := 55.0 * (1.0 + 0.15 * float(tier - 1))
+	for i in n:
+		var r: RoomRT = pool[_rng.randi() % pool.size()]
+		Landmine.place(content, _tile_pos(_random_tile(r, 1, 2.0)) + Vector3(_rng.randf() - 0.5, 0.0, _rng.randf() - 0.5) * 0.6, dmg, ui)
 
 func _tile_pos(t: Vector2i) -> Vector3:
 	return Vector3(t.x + 0.5, 0.0, t.y + 0.5)
@@ -754,16 +811,24 @@ func _process(delta: float) -> void:
 		_reveal_t = 0.25
 		_reveal_around(player.global_position, 9.0)
 		_map_flush()
+	if _blackout_t > 0.0:
+		_blackout_t -= delta
+		if _blackout_t <= 0.0:
+			_light_t = 0.0
 	if _light_t <= 0.0:
 		_light_t = 0.35
 		var pp := player.global_position
 		for l in _lights:
 			var node := l["light"] as Light3D
 			if node != null and is_instance_valid(node):
-				node.visible = pp.distance_to(l["pos"]) < 34.0
+				node.visible = _blackout_t <= 0.0 and pp.distance_to(l["pos"]) < 34.0
 	if _hazard_t <= 0.0:
 		_hazard_t = 0.3
 		_hazards()
+	_noise_t -= delta
+	if _noise_t <= 0.0:
+		_noise_t = _rng.randf_range(7.0, 14.0)
+		_noisy_sack()
 	_update_traps(delta)
 	for r in rooms:
 		if r.state == "active":
@@ -772,6 +837,33 @@ func _process(delta: float) -> void:
 		ui.combat.boss = boss
 		ui.combat.boss_name = boss.boss_name
 		ui.combat.boss_title = boss.boss_title
+
+
+## Every light on the floor goes dark for a while (spooky events).
+func blackout(secs: float) -> void:
+	_blackout_t = maxf(_blackout_t, secs)
+	for l in _lights:
+		var node := l["light"] as Light3D
+		if node != null and is_instance_valid(node):
+			node.visible = false
+
+
+## Noisy scrap (dolls, horns, clocks...) goes off in your sack and wakes things up nearby.
+func _noisy_sack() -> void:
+	var noisy: Array = []
+	for sc in Game.scrap:
+		if Scrap.DB.get(str(sc["id"]), {}).get("noisy", false):
+			noisy.append(sc)
+	if noisy.is_empty() or player.dead:
+		return
+	var sc: Dictionary = noisy[_rng.randi() % noisy.size()]
+	var d: Dictionary = Scrap.DB[str(sc["id"])]
+	Sfx.play(str(d["snd"]), 2.0, 0.9)
+	FloatText.spawn(content, player.global_position + Vector3(0, 2.2, 0), "*%s goes off in your sack*" % str(d["name"]).to_lower(), Color("#ffe27a"), 0.8)
+	for n in get_tree().get_nodes_in_group("mob"):
+		var m := n as Mob
+		if m != null and not m.dead and not m.awake and m.room == null and m.global_position.distance_to(player.global_position) < 26.0:
+			m.wake()
 
 
 func _track_room() -> void:
