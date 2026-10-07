@@ -6,7 +6,7 @@ render_mode diffuse_lambert, cull_back;
 
 uniform float vox = 0.04;            // voxel edge length in metres
 uniform float ppv = 4.0;             // texture pixels per voxel edge
-uniform float tex = 0.02;           // pixel noise strength
+uniform float tex = 0.045;           // pixel noise strength
 uniform vec4 tint : source_color = vec4(1.0);
 uniform float emission_strength = 1.7;
 uniform float wind = 0.0;
@@ -33,11 +33,16 @@ void vertex() {
 }
 
 void fragment() {
-	vec3 q = floor((lpos - lnorm * vox * 0.02) / (vox / ppv));
-	float n = hash3(q) - 0.5;
-	float n2 = hash3(q * 1.7 + 11.0) - 0.5;
+	// Minecraft-style pixels: a fixed texel size (~6 cm, i.e. 16 px per metre-block), three
+	// brightness levels only, and 2x2 clusters so it reads as texture, not static.
+	float pix = clamp(vox * 0.5, 0.02, 0.0625);
+	vec3 q = floor((lpos - lnorm * vox * 0.02) / pix);
+	float n = hash3(q);
+	float lvl = n < 0.22 ? -1.0 : (n > 0.78 ? 1.0 : 0.0);
+	float c = hash3(floor(q * 0.5) + 7.0);
+	float blot = c < 0.2 ? -0.5 : (c > 0.85 ? 0.5 : 0.0);
 	vec3 base = COLOR.rgb * tint.rgb;
-	base *= 1.0 + n * tex * 2.0 + n2 * tex * 0.7;
+	base *= 1.0 + (lvl + blot) * tex;
 	ALBEDO = mix(base, vec3(1.0), flash);
 	ROUGHNESS = 1.0;
 	SPECULAR = 0.0;

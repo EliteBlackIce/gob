@@ -4,28 +4,18 @@ extends RefCounted
 ## accessories; the Overdue Dragon has its own rig.
 
 const S := 0.13
-const SCALE := {"auditor": 2.3, "mimic_king": 3.0, "landlord": 2.6}
+const SCALE := {"auditor": 2.1, "mimic_king": 3.2, "landlord": 1.9}
 
 static var _cache := {}
 
 
 static func build(boss_id: String, theme: String) -> Node3D:
+	var m: Node3D
 	match boss_id:
-		"auditor":
-			var m := MobModels.build("skeleton", "crypt")
-			_accessorize_auditor(m)
+		"auditor", "landlord", "mimic_king":
+			m = MobModels.build(boss_id, theme)
 			m.scale = Vector3.ONE * SCALE[boss_id]
 			return m
-		"mimic_king":
-			var m2 := MobModels.build("mimic", "sewer")
-			_accessorize_king(m2)
-			m2.scale = Vector3.ONE * SCALE[boss_id]
-			return m2
-		"landlord":
-			var m3 := MobModels.build("intern", theme)
-			_accessorize_landlord(m3)
-			m3.scale = Vector3.ONE * SCALE[boss_id]
-			return m3
 		"dragon":
 			return _dragon()
 	return MobModels.build("skeleton", theme)
@@ -38,87 +28,6 @@ static func _mi(parent: Node3D, mesh: Mesh, pos := Vector3.ZERO, rot := Vector3.
 	m.rotation_degrees = rot
 	parent.add_child(m)
 	return m
-
-
-static func _accessorize_auditor(m: Node3D) -> void:
-	var rig := MobModels.rig_of(m)
-	# top hat
-	var hat := Vox.new(MobModels.S)
-	hat.box(-1, 0, -1, 9, 1, 9, Color("#1a1a22"), 0.04)
-	hat.box(1, 1, 1, 7, 9, 7, Color("#1a1a22"), 0.04)
-	hat.box(1, 1, 1, 7, 3, 7, Color("#5a2a7a"), 0.04)
-	hat.box(3, 2, 7, 5, 4, 8, Color("#e6b840"), 0.0)
-	_mi(rig["Head"], hat.build_coarse(Vector3(4, 0, 4)), Vector3(0, 8 * MobModels.S, 0))
-	# giant ledger in the left hand
-	var book := Vox.new(MobModels.S)
-	book.box(0, 0, 0, 12, 16, 3, Color("#5a1a1a"), 0.05)
-	book.box(1, 1, 3, 11, 15, 4, Color("#efe6cc"), 0.03)
-	for y in range(3, 14, 2):
-		book.box(2, y, 3, 10, y + 1, 4, Color("#6a6a74"), 0.0)
-	book.box(5, 14, 4, 7, 15, 5, Color("#c0302a"), 0.0)
-	var hand: Node3D = rig["HandL"] if rig.has("HandL") else rig["ArmL"]
-	_mi(hand, book.build_coarse(Vector3(6, 0, 1)), Vector3(0, -2 * MobModels.S, 2 * MobModels.S), Vector3(-90, 0, 0))
-	# glowing quill instead of a sword
-	if rig.has("HandR"):
-		var hr: Node3D = rig["HandR"]
-		for c in hr.get_children():
-			c.queue_free()
-		var quill := Vox.new(MobModels.S)
-		quill.box(0, 0, 0, 1, 24, 1, Color("#f0ece0"), 0.03)
-		quill.box(-1, 8, 0, 0, 22, 1, Color("#dcd6c0"), 0.04)
-		quill.box(1, 8, 0, 2, 22, 1, Color("#dcd6c0"), 0.04)
-		quill.box(0, 24, 0, 1, 26, 1, Color(0.7, 0.4, 1.0, 0.3), 0.0)
-		_mi(hr, quill.build_coarse(Vector3(0.5, 0, 0.5)), Vector3.ZERO, Vector3(-90, 0, 0))
-
-
-static func _accessorize_king(m: Node3D) -> void:
-	var rig := MobModels.rig_of(m)
-	var crown := Vox.new(MobModels.S)
-	crown.box(0, 0, 0, 10, 2, 8, Color("#e6b840"), 0.04)
-	for x in [0, 3, 6, 9]:
-		crown.box(x, 2, 0, x + 1, 5, 1, Color("#e6b840"), 0.04)
-		crown.box(x, 2, 7, x + 1, 5, 8, Color("#e6b840"), 0.04)
-	crown.box(4, 2, 0, 6, 4, 1, Color("#d83a4a", 0.5), 0.0)
-	_mi(rig["Lid"], crown.build_coarse(Vector3(5, 0, 4)), Vector3(0, 6 * MobModels.S, 5 * MobModels.S))
-	# pile of loot spilling out
-	var loot := Vox.new(MobModels.S)
-	for i in 14:
-		loot.box(i % 7, 0, i / 7, i % 7 + 1, 1 + (i % 3), i / 7 + 1, Color("#ffd24a", 0.7) if i % 2 == 0 else Color("#e6b840"), 0.05)
-	_mi(rig["Body"], loot.build_coarse(Vector3(3, 0, 1)), Vector3(0, 6 * MobModels.S, 3 * MobModels.S))
-
-
-static func _accessorize_landlord(m: Node3D) -> void:
-	var rig := MobModels.rig_of(m)
-	(rig["Spine"] as Node3D).scale = Vector3(1.45, 1.0, 1.4)       # big boned. Big wallet.
-	(rig["Head"] as Node3D).scale = Vector3(0.72, 1.0, 0.75)
-	var robe := Vox.new(MobModels.S)
-	robe.box(0, 0, 0, 12, 14, 7, Color("#6a2a3a"), 0.06)
-	robe.box(5, 0, 7, 7, 14, 8, Color("#4a1a28"), 0.04)
-	robe.box(0, 12, 0, 12, 14, 7, Color("#8a3a4a"), 0.06)
-	_mi(rig["Spine"], robe.build_coarse(Vector3(6, 0, 3.5)), Vector3(0, 0, 0))
-	# key ring on the belt
-	var keys := Vox.new(MobModels.S)
-	keys.cyl_y(0.0, 0.0, 0, 1, 3.0, 3.0, Color("#e6b840"), 0.03)
-	keys.remove_box(-1, 0, -1, 1, 1, 1)
-	for i in 5:
-		keys.box(i - 3, -4, 0, i - 2, 0, 1, Color("#c8a030"), 0.05)
-	_mi(rig["Hips"], keys.build_coarse(Vector3(0, 0, 0)), Vector3(4 * MobModels.S, 3 * MobModels.S, 3 * MobModels.S), Vector3(0, 0, 0))
-	# paper hat that reads RENT
-	var hat := Vox.new(MobModels.S)
-	hat.box(0, 0, 0, 10, 2, 9, Color("#efe6cc"), 0.03)
-	hat.box(1, 2, 1, 9, 7, 8, Color("#efe6cc"), 0.03)
-	hat.box(3, 3, 8, 7, 6, 9, Color("#c0302a"), 0.0)
-	_mi(rig["Head"], hat.build_coarse(Vector3(5, 0, 4.5)), Vector3(0, 8 * MobModels.S, 0))
-	# big sack of rent money
-	if rig.has("HandR"):
-		var hr: Node3D = rig["HandR"]
-		for c in hr.get_children():
-			c.queue_free()
-		var sack := Vox.new(MobModels.S)
-		sack.ellipsoid(0.0, 5.0, 0.0, 5.0, 5.0, 4.0, Color("#b89c64"), 0.07)
-		sack.box(-1, 9, -1, 2, 11, 1, Color("#8a6a38"), 0.04)
-		sack.box(-2, 4, 4, 2, 7, 5, Color("#2a7a3a"), 0.0)
-		_mi(hr, sack.build_coarse(Vector3(0, 0, 0)), Vector3.ZERO, Vector3(-90, 0, 0))
 
 
 # ---------------------------------------------------------------- dragon
@@ -158,68 +67,88 @@ static func _dragon() -> Node3D:
 
 
 static func _dragon_parts() -> Dictionary:
-	var red := Color("#9a2c20")
-	var dark := Color("#5a1612")
-	var belly := Color("#d8a860")
+	var red := Color("#9a2420")
+	var dark := Color("#5a1614")
+	var belly := Color("#e0b46c")
+	var bone := Color("#ece0b8")
+	var membrane := Color("#c8472a")
 	var d := {}
 	var body := Vox.new(S)
-	body.ellipsoid(0.0, 6.0, 0.0, 8.0, 7.0, 13.0, red, 0.06)
-	body.ellipsoid(0.0, 3.0, 1.0, 6.0, 4.0, 11.0, belly, 0.05)
-	for z in range(-10, 10, 3):
-		body.box(-1, 12, z, 1, 15, z + 1, dark, 0.04)               # back spikes
-		body.box(0, 15, z, 1, 16, z + 1, Color("#e8d8a0"), 0.0)
-	d["body"] = body.build_coarse(Vector3(0, 6, 0))
+	body.box(-7, 2, -12, 7, 10, 12, red, 0.03)
+	body.box(-6, 10, -10, 6, 12, 10, red.darkened(0.08), 0.03)               # humped back
+	body.box(-6, 0, -11, 6, 3, 11, belly, 0.02)                               # cream belly
+	for z in range(-10, 11, 3):
+		body.box(-6, 1, z, 6, 2, z + 1, belly.darkened(0.16), 0.02)           # belly plates
+		body.box(-8, 4, z, -7, 9, z + 2, dark, 0.03)                          # side scales
+		body.box(7, 4, z, 8, 9, z + 2, dark, 0.03)
+		body.box(-1, 12, z, 1, 14, z + 1, bone, 0.02)                         # back spikes
+		body.box(0, 14, z, 1, 16 if z % 2 == 0 else 15, z + 1, bone.lightened(0.05), 0.02)
+	body.box(-7, 8, 8, 7, 11, 12, dark.lightened(0.05), 0.03)                 # shoulder plates
+	d["body"] = body.build_shaded(Vector3(0, 6, 0))
 	var neck := Vox.new(S)
-	neck.ellipsoid(0.0, 0.0, 0.0, 4.2, 4.5, 6.0, red, 0.06)
-	neck.box(-1, 4, -5, 1, 7, 5, dark, 0.04)
-	d["neck"] = neck.build_coarse(Vector3(0, 0, 0))
+	neck.box(-4, -4, -6, 4, 5, 6, red, 0.03)
+	neck.box(-3, -4, -6, 3, -2, 6, belly, 0.02)                               # throat
+	for z in range(-5, 6, 3):
+		neck.box(-1, 5, z, 1, 7, z + 1, bone, 0.02)
+	d["neck"] = neck.build_shaded(Vector3(0, 0, 0))
 	var head := Vox.new(S)
-	head.box(-4, -2, -2, 4, 5, 6, red, 0.06)
-	head.box(-3, -2, 6, 3, 2, 12, red.lightened(0.04), 0.06)           # snout
-	head.box(-1, 2, 11, 0, 3, 12, dark, 0.0)                           # nostrils
-	head.box(1, 2, 11, 2, 3, 12, dark, 0.0)
-	for sx in [-5, 4]:
-		head.box(sx, 2, 1, sx + 1, 4, 3, Color("#fff0a0", 0.2), 0.0)    # glowing eyes
+	head.box(-5, -3, -3, 5, 5, 6, red, 0.03)
+	head.box(-4, -3, 6, 4, 2, 14, red.lightened(0.04), 0.03)                  # long snout
+	head.box(-4, 2, 6, 4, 3, 14, red.darkened(0.1), 0.03)
+	head.box(-5, 5, 1, 5, 6, 6, dark, 0.03)                                    # brow ridge
+	head.box(-2, 1, 14, -1, 2, 15, MobModels.DARK, 0.0)                                  # nostrils
+	head.box(1, 1, 14, 2, 2, 15, MobModels.DARK, 0.0)
+	for sx in [-6, 5]:
+		head.box(sx, 1, 1, sx + 1, 4, 4, Color("#fff0a0", 0.2), 0.0)           # glowing eyes
+		head.box(sx, -1, -1, sx + 2, 1, 2, dark, 0.03)                         # cheek spikes
 	for hx in [-4, 3]:
-		head.box(hx, 5, -2, hx + 2, 11, 0, Color("#e8d8a0"), 0.04)      # horns
-		head.box(hx - (1 if hx < 0 else -1), 9, -3, hx + 1, 14, -1, Color("#c8b880"), 0.04)
-	for tx in range(-3, 3, 2):
-		head.box(tx, -3, 7, tx + 1, -1, 8, Color("#f4ecd0"), 0.0)       # upper fangs
-	d["head"] = head.build_coarse(Vector3(0, 0, 0))
+		head.box(hx, 5, -3, hx + 2, 9, -1, bone, 0.02)                         # swept-back horns
+		head.box(hx + (-1 if hx < 0 else 1), 8, -5, hx + (1 if hx < 0 else 3), 11, -3, bone.lightened(0.05), 0.02)
+		head.box(hx + (-2 if hx < 0 else 2), 10, -7, hx + (0 if hx < 0 else 4), 13, -5, bone.lightened(0.1), 0.02)
+	for tx in range(-3, 4, 2):
+		head.box(tx, -4, 8, tx + 1, -2, 9, Color("#f4ecd0"), 0.0)             # upper fangs
+	d["head"] = head.build_shaded(Vector3(0, 0, 0))
 	var jaw := Vox.new(S)
-	jaw.box(-3, -3, 0, 3, -1, 10, red.darkened(0.12), 0.05)
-	jaw.box(-2, -1, 1, 2, 0, 9, Color("#c0304a"), 0.0)
-	for tx2 in range(-2, 3, 2):
-		jaw.box(tx2, -1, 8, tx2 + 1, 1, 9, Color("#f4ecd0"), 0.0)
-	d["jaw"] = jaw.build_coarse(Vector3(0, 0, 0))
+	jaw.box(-4, -3, 0, 4, -1, 13, red.darkened(0.15), 0.03)
+	jaw.box(-3, -1, 1, 3, 0, 12, Color("#c0304a"), 0.0)
+	jaw.box(-1, -1, 4, 1, 0, 10, Color("#e0506a"), 0.0)                       # tongue
+	for tx2 in range(-3, 4, 2):
+		jaw.box(tx2, -1, 11, tx2 + 1, 1, 12, Color("#f4ecd0"), 0.0)
+	d["jaw"] = jaw.build_shaded(Vector3(0, 0, 0))
 	for i in [1, 2, 3]:
 		var t := Vox.new(S)
-		var r := 5.0 - float(i) * 1.2
-		t.ellipsoid(0.0, 0.0, -4.0, r, r * 0.9, 6.0, red.darkened(0.04 * i), 0.06)
+		var r: int = 6 - i
+		t.box(-r, -r + 1, -9, r, r, 0, red.darkened(0.04 * i), 0.03)
+		t.box(-r + 1, -r, -9, r - 1, -r + 1, 0, belly.darkened(0.1 * i), 0.02)
+		for z in range(-8, 0, 3):
+			t.box(0, r, z, 1, r + 2, z + 1, bone, 0.02)
 		if i == 3:
-			t.box(-1, -1, -11, 1, 1, -9, Color("#e8d8a0"), 0.0)
-			t.box(-3, -1, -10, 3, 1, -8, Color("#c8b880"), 0.0)
-			t.box(0, 1, -12, 1, 4, -8, Color("#e8d8a0"), 0.0)
-		d["tail%d" % i] = t.build_coarse(Vector3(0, 0, 0))
+			t.box(-1, -1, -13, 1, 1, -9, red.darkened(0.12), 0.03)
+			t.box(-4, -1, -14, 4, 1, -11, dark, 0.03)                          # spade tail tip
+			t.box(0, 1, -14, 1, 5, -11, bone, 0.02)
+		d["tail%d" % i] = t.build_shaded(Vector3(0, 0, 0))
 	var w := Vox.new(S)
-	for i in 26:
-		var h := 18 - int(i * 0.5)
-		var col := Color("#8a1a14") if i % 5 else dark
-		w.box(i, -h / 2, 0, i + 1, h - h / 2, 1, col, 0.06)
+	w.box(0, -1, -1, 26, 2, 2, bone.darkened(0.15), 0.02)                      # leading arm bone
+	w.box(24, -1, -1, 27, 3, 2, bone, 0.02)
 	for fx in [6, 12, 18, 24]:
-		w.box(fx, -9, 0, fx + 1, 9, 1, dark, 0.04)
-	w.box(0, 0, -1, 26, 2, 2, red, 0.05)
-	d["wing"] = w.build_coarse(Vector3(0, 0, 0))
+		var reach: int = 14 - fx / 3
+		w.box(fx, -reach, 0, fx + 1, 0, 1, bone.darkened(0.2), 0.02)           # finger bones
+		for xx in range(fx - 5 if fx > 6 else 0, fx):
+			var hh: int = int(float(reach) * float(xx - (fx - 6)) / 6.0) if fx > 6 else reach
+			w.box(xx, -clampi(hh, 1, reach), 0, xx + 1, 0, 1, membrane if (xx + fx) % 7 else membrane.darkened(0.15), 0.04)
+	w.box(0, -6, 0, 6, 0, 1, membrane, 0.04)
+	d["wing"] = w.build_shaded(Vector3(0, 0, 0))
 	var wr := Vox.new(S)
 	for k in w.cells:
 		wr.cells[Vector3i(-1 - k.x, k.y, k.z)] = w.cells[k]
-	d["wingR"] = wr.build_coarse(Vector3(0, 0, 0))
+	d["wingR"] = wr.build_shaded(Vector3(0, 0, 0))
 	var leg := Vox.new(S)
-	leg.box(-2, -8, -2, 3, 0, 3, red.darkened(0.08), 0.06)
-	leg.box(-3, -10, -2, 4, -8, 5, dark, 0.05)
-	for cx in range(-2, 4, 2):
-		leg.box(cx, -10, 5, cx + 1, -8, 7, Color("#e8d8a0"), 0.0)
-	d["leg"] = leg.build_coarse(Vector3(0, 0, 0))
+	leg.box(-3, -8, -3, 4, 0, 4, red.darkened(0.08), 0.03)
+	leg.box(-4, -4, -4, 5, -2, 5, dark, 0.03)                                  # knee plate
+	leg.box(-4, -11, -3, 5, -8, 7, dark.lightened(0.05), 0.03)                 # foot
+	for cx in range(-3, 5, 3):
+		leg.box(cx, -11, 7, cx + 2, -9, 10, bone, 0.02)                        # claws
+	d["leg"] = leg.build_shaded(Vector3(0, 0, 0))
 	return d
 
 

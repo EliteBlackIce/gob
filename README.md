@@ -91,7 +91,7 @@ baked per-block ambient occlusion, hard sun shadows, bloom and fog carry the loo
 
 ## Asset sheets
 
-`art/` has screenshots rendered from the engine: `dungeon_*` (combat, loot beams, HUD), `mobs_*`, `boss_*`, `weapons.png`,
+`art/` has screenshots rendered from the engine: `dungeon_*` (combat, loot beams, HUD), `mobs_g*`, `boss_*`, `weapons.png`,
 `ui_*` (inventory, shop, contracts, skills) and `tavern_*` (`tests/dshot.tscn`). `art/01..07` are the older contact sheets.
 
 ## Tests

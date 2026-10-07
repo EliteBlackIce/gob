@@ -170,8 +170,33 @@ func coarsen(f := 2) -> Vox:
 
 
 ## build() with automatic chunkiness: models made of tiny voxels (<= 0.06 m) are merged 2x.
+static var coarse_enabled := false
+
+
+## Soft top-to-bottom shading across the whole model (lighter on top, darker underneath): cheap depth.
+func shade_vertical(lo := 0.88, hi := 1.07) -> Vox:
+	var miny := 1 << 30
+	var maxy := -(1 << 30)
+	for k: Vector3i in cells:
+		miny = mini(miny, k.y)
+		maxy = maxi(maxy, k.y)
+	var span := float(maxi(maxy - miny, 1))
+	for k: Vector3i in cells.keys():
+		var c: Color = cells[k]
+		if c.a < 0.99:
+			continue
+		var f := lerpf(lo, hi, float(k.y - miny) / span)
+		cells[k] = Color(clampf(c.r * f, 0.0, 1.0), clampf(c.g * f, 0.0, 1.0), clampf(c.b * f, 0.0, 1.0), c.a)
+	return self
+
+
+func build_shaded(origin := Vector3.ZERO, lo := 0.88, hi := 1.07) -> ArrayMesh:
+	shade_vertical(lo, hi)
+	return build_coarse(origin)
+
+
 func build_coarse(origin := Vector3.ZERO, ao_on := true) -> ArrayMesh:
-	if size > 0.065:
+	if not coarse_enabled or size > 0.065:
 		return build(origin, ao_on)
 	return coarsen(2).build(origin / 2.0, ao_on)
 

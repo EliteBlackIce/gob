@@ -67,34 +67,38 @@ func _stage(theme: String) -> Node3D:
 func mobs(theme: String) -> void:
 	var root := _stage(theme)
 	var cam := Camera3D.new()
-	cam.fov = 55.0
+	cam.fov = 50.0
 	root.add_child(cam)
 	cam.current = true
 	var kinds := MobDB.KINDS.keys()
-	var models: Array = []
-	for i in kinds.size():
-		var m := MobModels.build(kinds[i], theme)
-		for mi in m.find_children("*", "MeshInstance3D", true, false):
-			(mi as MeshInstance3D).material_override = VMat.solid(MobModels.S, 4.0) if kinds[i] != "ghost" else VMat.glass(MobModels.S, 0.55)
-		var col := i % 5
-		var row := i / 5
-		m.position = Vector3(-4.8 + col * 2.4, 0, -row * 2.8)
-		models.append(m)
-		root.add_child(m)
-	cam.position = Vector3(0, 2.6, 3.6)
-	cam.look_at(Vector3(0, 0.9, -2.2), Vector3.UP)
-	cam.fov = 62.0
-	for t in 20:
-		for i in models.size():
-			MobModels.animate(models[i], t * 0.1, 0.0, "idle", 0.0)
-		await get_tree().process_frame
-	await _snap("idle")
-	for i in models.size():
-		MobModels.animate(models[i], 1.0, 0.0, "windup", 1.0)
-	await _snap("windup")
-	for i in models.size():
-		MobModels.animate(models[i], 1.0, 1.0, "walk", 0.0)
-	await _snap("walk")
+	var groups := 3
+	var per := int(ceil(float(kinds.size()) / groups))
+	for gi in groups:
+		var models: Array = []
+		for i in per:
+			var idx := gi * per + i
+			if idx >= kinds.size():
+				break
+			var kind: String = kinds[idx]
+			var m := MobModels.build(kind, theme)
+			for mi in m.find_children("*", "MeshInstance3D", true, false):
+				(mi as MeshInstance3D).material_override = VMat.solid(MobModels.S, 4.0) if kind != "ghost" else VMat.glass(MobModels.S, 0.55)
+			m.position = Vector3((i - (per - 1) * 0.5) * 1.55, 0, -3.0)
+			root.add_child(m)
+			models.append(m)
+		cam.position = Vector3(0, 1.5, 0.6)
+		cam.look_at(Vector3(0, 0.85, -3.0), Vector3.UP)
+		for t in 12:
+			for m in models:
+				MobModels.animate(m, t * 0.1, 0.0, "idle", 0.0)
+			await get_tree().process_frame
+		await _snap("g%d_idle" % gi)
+		for m in models:
+			MobModels.animate(m, 1.0, 0.0, "windup", 1.0)
+		await _snap("g%d_windup" % gi)
+		for m in models:
+			m.queue_free()
+		await _frames(2)
 
 
 func bosses() -> void:
