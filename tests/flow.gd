@@ -43,8 +43,11 @@ func _ready() -> void:
 	check(Game.day == day0 + 1, "a new day begins")
 	main.ui.close_modal(false)
 	main._busy = false
-	# second run: straight delivery
-	Game.current_job = Game.today_jobs[0]
+	# second run: straight delivery (pin a parcel that can't run off or explode, so it's deterministic)
+	Game.current_job = Game.today_jobs[0].duplicate()
+	Game.current_job["id"] = "anvil"
+	Game.current_job["title"] = "Ceremonial Anvil"
+	Game.current_job["trait"] = "heavy"
 	main._on_start_run()
 	await frames(200)
 	isl = main.current
