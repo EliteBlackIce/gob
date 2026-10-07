@@ -116,7 +116,7 @@ func _ready() -> void:
 	player.killed_mob.connect(func(_m): pass)
 	var lamp := OmniLight3D.new()
 	lamp.light_color = Color("#ffe0b0")
-	lamp.light_energy = 0.9 if not _dark else 1.3
+	lamp.light_energy = 0.55 if not _dark else 1.1
 	lamp.omni_range = 6.5
 	lamp.position = Vector3(0, 1.7, 0)
 	player.add_child(lamp)
@@ -409,7 +409,7 @@ func _make_chest(pos: Vector3, tier_c: int, mimic: bool, r: RoomRT) -> Node3D:
 
 
 func _chest_loot(pos: Vector3, tier_c: int) -> void:
-	var n := 1 + tier_c + (1 if _rng.randf() < 0.3 else 0)
+	var n := 1 + tier_c + (1 if _rng.randf() < 0.3 else 0) + (1 if Game.has_skill("jackpot") else 0)
 	for i in n:
 		_drop_item(pos, "", 0.25 * tier_c + 0.15)
 	_drop_copper(pos, 3 + tier_c * 3)

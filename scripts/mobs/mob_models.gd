@@ -139,7 +139,7 @@ static func _make_parts(kind: String, pal: Dictionary) -> Dictionary:
 	var d := {}
 	match kind:
 		"skeleton", "archer":
-			var bone := main.lerp(BONE, 0.55)
+			var bone := main.lerp(BONE, 0.55).darkened(0.16)
 			d = _skeleton(bone, acc, glow, kind == "archer")
 		"intern":
 			d = _intern(main, acc)

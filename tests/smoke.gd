@@ -105,8 +105,7 @@ func test_basics() -> void:
 	await frames(20)
 	var p: Player = isl.player
 	check(p.bottles == 3, "new goblin starts with 3 bottles (%d)" % p.bottles)
-	check(Game.has_skill("kick") and Game.has_skill("bottle"), "bottle + kick are free")
-	check(not Game.has_skill("dash"), "dash still has to be learned")
+	check(p.mode == "route" and p.max_hp >= 100.0, "route mode, RPG hit points (%d)" % int(p.max_hp))
 	# kick stuns a slime without any skills
 	var s := Slime.new()
 	s.island = isl
@@ -331,7 +330,7 @@ func test_ogre() -> void:
 	ui.close_modal()
 	ogre._answer(false)
 	await frames(60)
-	check(ogre.strikes == 1 and p.hp < 3, "wrong answer -> strike + damage (hp %d)" % p.hp)
+	check(ogre.strikes == 1 and p.hp < p.max_hp, "wrong answer -> strike + damage (hp %d)" % p.hp)
 	ogre._busy = false
 	ogre._answer(true)
 	await frames(60)
@@ -363,12 +362,12 @@ func test_skills() -> void:
 	var isl := make_island(job_with("heavy"))
 	await frames(20)
 	var p: Player = isl.player
-	check(p.bottles >= 6, "bottle skills give bottles (%d)" % p.bottles)
+	check(p.bottles >= 6, "bandolier and bomb maker give bottles (%d)" % p.bottles)
 	p.hp = 1
-	p.take_hit(Vector3.FORWARD, 5.0, 3, "was a test")
-	check(not p.dead and p.hp == 1, "Second Wind saves the first lethal hit")
+	p.take_hit(Vector3.FORWARD, 5.0, 9999.0, "was a test")
+	check(not p.dead and p.hp > 30.0, "Second Wind saves the first lethal hit (hp %d)" % int(p.hp))
 	p.invuln = 0.0
-	p.take_hit(Vector3.FORWARD, 5.0, 3, "was a test")
+	p.take_hit(Vector3.FORWARD, 5.0, 9999.0, "was a test")
 	check(p.dead, "...but only the first")
 	isl.queue_free()
 	await frames(3)

@@ -30,6 +30,7 @@ func _ready() -> void:
 	check(main.ui.modal_open, "intro letter shown to a new goblin")
 	main.ui.close_modal()
 	Game.current_job = Game.today_jobs[0]
+	check(Game.current_job["kind"] == "route", "first board entry is the island route")
 	main._on_start_run()
 	await frames(200)
 	check(main.current is Island, "run starts: island loaded")
@@ -43,7 +44,7 @@ func _ready() -> void:
 	main.ui.close_modal(false)
 	main._busy = false
 	# second run: straight delivery
-	Game.current_job = Game.today_jobs[1]
+	Game.current_job = Game.today_jobs[0]
 	main._on_start_run()
 	await frames(200)
 	isl = main.current
@@ -54,6 +55,39 @@ func _ready() -> void:
 	isl._try_deliver(isl.player)
 	await frames(200)
 	check(main.current is Tavern and Game.copper > cop, "delivery pays and returns to tavern")
+	# third run: a procedurally generated dungeon
+	main.ui.close_modal(false)
+	main._busy = false
+	var dj: Dictionary = {}
+	for j in Game.today_jobs:
+		if j["kind"] == "dungeon":
+			dj = j
+			break
+	Game.current_job = dj
+	main._on_start_run()
+	await frames(240)
+	check(main.current is Dungeon, "dungeon contract loads a dungeon")
+	var dg: Dungeon = main.current
+	check(dg.rooms.size() >= 9 and dg.player.mode == "dungeon", "dungeon is built and the goblin is inside")
+	# die in the dungeon and come back with a result screen
+	dg.player.die("was flow-tested by a skeleton")
+	await frames(600)
+	check(main.current is Tavern and main.ui.modal_open, "dungeon death returns to the tavern with results")
+	main.ui.close_modal(false)
+	main._busy = false
+	# fourth run: win the dungeon via the shortcut (boss + delivery) and bank the loot
+	Game.current_job = dj
+	main._on_start_run()
+	await frames(240)
+	dg = main.current
+	check(dg is Dungeon, "second dungeon loads")
+	dg.boss.take_damage(99999.0, Vector3.FORWARD, {})
+	await frames(30)
+	dg._deliver(1.0)
+	var cop2 := Game.copper
+	dg._go_home(null)
+	await frames(300)
+	check(main.current is Tavern and Game.deliveries >= 2, "delivering a dungeon contract returns home with pay")
 	print("\nFLOW TEST: ", "PASS" if fails == 0 else "%d FAILURES" % fails)
 	Game.reset_save()
 	get_tree().quit(1 if fails > 0 else 0)

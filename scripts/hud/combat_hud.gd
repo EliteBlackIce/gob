@@ -30,6 +30,8 @@ func _ready() -> void:
 
 func _process(delta: float) -> void:
 	_t += delta
+	size = get_viewport_rect().size
+	position = Vector2.ZERO
 	if player != null and is_instance_valid(player):
 		var f := player.hp / maxf(player.max_hp, 1.0)
 		_hp_trail = move_toward(_hp_trail, f, delta * 0.35) if _hp_trail > f else f
@@ -40,9 +42,12 @@ func _process(delta: float) -> void:
 	queue_redraw()
 
 
-func _txt(pos: Vector2, s: String, size := 18, col := TEXT, align := HORIZONTAL_ALIGNMENT_LEFT, width := -1.0) -> void:
-	draw_string_outline(_font, pos, s, align, width, size, maxi(4, size / 4), INK)
-	draw_string(_font, pos, s, align, width, size, col)
+func _txt(pos: Vector2, s: String, font_size := 18, col := TEXT, align := HORIZONTAL_ALIGNMENT_LEFT, width := -1.0) -> void:
+	var p := pos
+	if align == HORIZONTAL_ALIGNMENT_CENTER and width <= 0.0:
+		p.x -= _font.get_string_size(s, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x * 0.5
+	draw_string_outline(_font, p, s, HORIZONTAL_ALIGNMENT_LEFT, width, font_size, maxi(4, font_size / 4), INK)
+	draw_string(_font, p, s, HORIZONTAL_ALIGNMENT_LEFT, width, font_size, col)
 
 
 func _bar(r: Rect2, frac: float, fill: Color, back := Color(0.1, 0.06, 0.05, 0.85), trail := -1.0, trail_col := Color(1, 1, 1, 0.8)) -> void:

@@ -9,7 +9,7 @@ const WALL_H := 11            # voxels (5.5 m)
 const CH := 16                # chunk size in tiles
 
 const THEME_COLORS := {
-	"crypt": {"wall": Color("#7a7688"), "floor": Color("#6a6876"), "accent": Color("#8a5aa0"), "fog": Color("#120e1a"), "ambient": Color("#5c5a80"),
+	"crypt": {"wall": Color("#767c8a"), "floor": Color("#686c78"), "accent": Color("#8a5aa0"), "fog": Color("#120e1a"), "ambient": Color("#5c5a80"),
 		"torch": Color("#ffb060"), "glow": Color("#8affb0"), "sky": Color("#08060e")},
 	"sewer": {"wall": Color("#5a7a66"), "floor": Color("#4a6256"), "accent": Color("#a0902e"), "fog": Color("#0a1610"), "ambient": Color("#6a8a78"),
 		"torch": Color("#ffe9a0"), "glow": Color("#c8ff6a"), "sky": Color("#050a07")},

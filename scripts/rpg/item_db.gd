@@ -245,7 +245,7 @@ static func _make_name(it: Dictionary, picked: Array, rng: RandomNumberGenerator
 	var n: String = base_name(it)
 	var pre: Array = PREFIXES[r]
 	var out := "%s %s" % [pre[rng.randi() % pre.size()], n]
-	if r >= 2:
+	if r >= 2 and not " of " in n:
 		out += " " + SUFFIXES[rng.randi() % SUFFIXES.size()]
 	return out
 

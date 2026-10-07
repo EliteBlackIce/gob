@@ -9,24 +9,30 @@ const INV_CAP := 28
 
 const SKILLS := {
 	"quick_feet": {"branch": "Courier", "tier": 1, "name": "Quick Feet", "desc": "+12% run speed. Fear is a great coach."},
-	"roll_master": {"branch": "Courier", "tier": 2, "name": "Roll Master", "desc": "Dodge roll cooldown -30%, longer invulnerability."},
+	"roll_master": {"branch": "Courier", "tier": 2, "name": "Roll Master", "desc": "Dodge roll cooldown -30%, longer invulnerability, holler recharges faster."},
 	"second_wind": {"branch": "Courier", "tier": 3, "name": "Second Wind", "desc": "Survive the first lethal hit each run at 40% HP."},
+	"perfect_dodge": {"branch": "Courier", "tier": 4, "name": "Perfect Dodge", "desc": "Rolling through an attack resets your roll cooldown."},
 	"power_strikes": {"branch": "Brawler", "tier": 1, "name": "Power Strikes", "desc": "+12% weapon damage."},
 	"keen_edge": {"branch": "Brawler", "tier": 2, "name": "Keen Edge", "desc": "+8% crit chance, +25% crit damage."},
 	"bloodthirst": {"branch": "Brawler", "tier": 3, "name": "Bloodthirst", "desc": "+4% lifesteal. Ew."},
+	"berserker": {"branch": "Brawler", "tier": 4, "name": "Berserker", "desc": "+30% damage while below 40% HP. Rage is a feature."},
 	"bandolier": {"branch": "Scrapper", "tier": 1, "name": "Bandolier", "desc": "+3 throwing bottles every run."},
 	"power_boot": {"branch": "Scrapper", "tier": 2, "name": "Power Boot", "desc": "Kicks hit twice as hard and stagger bosses."},
 	"bomb_maker": {"branch": "Scrapper", "tier": 3, "name": "Bomb Maker", "desc": "Throwables +40% damage, bigger splash, +2 bottles."},
-	"stamp": {"branch": "Fixer", "tier": 1, "name": "Stamp Mastery", "desc": "Inspection timing window +60%."},
-	"riddle": {"branch": "Fixer", "tier": 2, "name": "Paperwork Sense", "desc": "Eliminates one wrong riddle answer."},
-	"forged": {"branch": "Fixer", "tier": 3, "name": "Forged Papers", "desc": "First inspection each run auto-passes."},
-	"lucky": {"branch": "Fixer", "tier": 4, "name": "Lucky Stamp", "desc": "+15% loot luck: better rarities more often."},
-	"padding": {"branch": "Pack Rat", "tier": 1, "name": "Padding", "desc": "Parcels take 35% less damage."},
+	"pyro": {"branch": "Scrapper", "tier": 4, "name": "Pyromaniac", "desc": "Thrown bottles set enemies on fire. Everything is on fire."},
+	"lucky": {"branch": "Gambler", "tier": 1, "name": "Lucky Stamp", "desc": "+15% loot luck: better rarities more often."},
+	"pickpocket": {"branch": "Gambler", "tier": 2, "name": "Sticky Fingers", "desc": "+25% copper from everything."},
+	"appraiser": {"branch": "Gambler", "tier": 3, "name": "Appraiser", "desc": "Gruk pays 20% more for your junk."},
+	"jackpot": {"branch": "Gambler", "tier": 4, "name": "Jackpot", "desc": "Every chest holds one more item."},
+	"padding": {"branch": "Pack Rat", "tier": 1, "name": "Padding", "desc": "Your parcel takes 35% less damage."},
 	"tough": {"branch": "Pack Rat", "tier": 2, "name": "Tough Hide", "desc": "+20% max HP."},
-	"pocket": {"branch": "Pack Rat", "tier": 3, "name": "Secret Pocket", "desc": "The first theft each run fails. Crows are offended."},
-	"grog_lover": {"branch": "Pack Rat", "tier": 4, "name": "Grog Lover", "desc": "+1 grog flask per run, grog heals more."},
+	"pocket": {"branch": "Pack Rat", "tier": 3, "name": "Secret Pocket", "desc": "(Island) the first theft each run fails. Crows are offended."},
+	"grog_lover": {"branch": "Pack Rat", "tier": 4, "name": "Grog Lover", "desc": "+1 grog flask carry, grog heals 55% instead of 40%."},
+	"stamp": {"branch": "Postal", "tier": 1, "name": "Stamp Mastery", "desc": "(Island) inspection timing window +60%."},
+	"riddle": {"branch": "Postal", "tier": 2, "name": "Paperwork Sense", "desc": "(Island) eliminates one wrong riddle answer."},
+	"forged": {"branch": "Postal", "tier": 3, "name": "Forged Papers", "desc": "(Island) first inspection each run auto-passes."},
 }
-const BRANCHES := ["Courier", "Brawler", "Scrapper", "Fixer", "Pack Rat"]
+const BRANCHES := ["Courier", "Brawler", "Scrapper", "Gambler", "Pack Rat", "Postal"]
 
 ## Daily mandate from Grubnik: a flat modifier to everything that day.
 const MANDATES := [
@@ -276,7 +282,7 @@ func unequip(slot: String) -> bool:
 
 
 func sell_price(it: Dictionary) -> int:
-	var mult := 0.5 + (0.2 if has_skill("lucky") else 0.0)
+	var mult := 0.5 + (0.2 if has_skill("appraiser") else 0.0)
 	return int(round(float(it["value"]) * mult))
 
 

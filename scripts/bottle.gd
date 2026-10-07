@@ -71,5 +71,8 @@ func _pop() -> void:
 		if mob != null and not mob.dead and mob.global_position.distance_to(global_position) < radius + mob.body_r:
 			var dir := (mob.global_position - global_position)
 			dir.y = 0.0
-			mob.take_damage(damage, dir.normalized(), {"knock": 5.0, "stun": stun_t * 0.5, "source": "bottle"})
+			var info := {"knock": 5.0, "stun": stun_t * 0.5, "source": "bottle"}
+			if Game.has_skill("pyro"):
+				info["burn"] = damage * 0.3
+			mob.take_damage(damage, dir.normalized(), info)
 	queue_free()

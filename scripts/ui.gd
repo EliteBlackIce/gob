@@ -101,7 +101,11 @@ func _ready() -> void:
 	_root.add_child(_dmg)
 	_pause_label = _label("PAUSED  -  click to get back to work", 34, Color("#fff3cf"), true, _root)
 	_pause_label.set_anchors_preset(Control.PRESET_CENTER)
-	_pause_label.position = Vector2(-330, -20)
+	_pause_label.offset_left = -330
+	_pause_label.offset_right = 330
+	_pause_label.offset_top = -20
+	_pause_label.offset_bottom = 20
+	_pause_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_pause_label.visible = false
 	_fade = ColorRect.new()
 	_fade.color = Color(0.04, 0.03, 0.05, 1.0)
@@ -373,6 +377,7 @@ func configure_hud(mode: Variant) -> void:
 	_parcel_bar.visible = island_mode
 	_parcel_status.visible = island_mode
 	show_compass = island_mode
+	_mandate.visible = island_mode
 	_mandate.text = "Grubnik says: " + str(Game.mandate["text"])
 	_mandate.modulate.a = 1.0
 	if island_mode:
@@ -692,7 +697,7 @@ func show_riddle(heading: String, question: String, answers: Array, cb: Callable
 
 
 func show_skills(on_close := Callable()) -> void:
-	var vb := _open_modal(1040)
+	var vb := _open_modal(1260)
 	_ink("THE CELLAR  -  Skill Tree", 34, vb)
 	_ink("Skill points: %d   (one per level up!)" % Game.skill_points, 18, vb)
 	var cols := HBoxContainer.new()
@@ -700,7 +705,7 @@ func show_skills(on_close := Callable()) -> void:
 	vb.add_child(cols)
 	for branch in Game.BRANCHES:
 		var col := VBoxContainer.new()
-		col.custom_minimum_size = Vector2(230, 0)
+		col.custom_minimum_size = Vector2(196, 0)
 		col.add_theme_constant_override("separation", 8)
 		cols.add_child(col)
 		_ink(branch.to_upper(), 24, col)
@@ -716,7 +721,7 @@ func show_skills(on_close := Callable()) -> void:
 					if Game.buy_skill(id):
 						Sfx.play("coin")
 						show_skills(on_close), can)
-				b.custom_minimum_size = Vector2(230, 96)
+				b.custom_minimum_size = Vector2(196, 96)
 				b.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 				b.clip_text = false
 	_button("Back upstairs", vb, func():

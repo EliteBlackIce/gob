@@ -211,7 +211,7 @@ static func icon(item: Dictionary) -> ImageTexture:
 		return _icon_cache[key]
 	var v := vox_for(item)
 	var weapon_like: bool = item["slot"] == "weapon"
-	var n := 24
+	var n := 32
 	var img := Image.create(n, n, false, Image.FORMAT_RGBA8)
 	var lo := Vector3(1e9, 1e9, 1e9)
 	var hi := Vector3(-1e9, -1e9, -1e9)
@@ -228,7 +228,7 @@ static func icon(item: Dictionary) -> ImageTexture:
 	var maxdim := maxf(ext.x, ext.y)
 	if weapon_like:
 		maxdim = Vector2(ext.x, ext.y).length()
-	var sc := float(n - 2) / maxf(maxdim, 1.0)
+	var sc := float(n - 4) / maxf(maxdim, 1.0)
 	var cx := (lo.x + hi.x) * 0.5
 	var cy := (lo.y + hi.y) * 0.5
 	for k: Vector3i in order:
@@ -237,12 +237,17 @@ static func icon(item: Dictionary) -> ImageTexture:
 		var py := float(k.y) + 0.5 - cy
 		var rx := px * ca - py * sa
 		var ry := px * sa + py * ca
-		var ix := int(round(n * 0.5 + rx * sc - 0.5))
-		var iy := int(round(n * 0.5 - ry * sc - 0.5))
-		if ix < 0 or iy < 0 or ix >= n or iy >= n:
-			continue
+		var bs := maxi(1, int(ceil(sc)) + (1 if weapon_like and sc > 0.9 else 0))
+		var ix := int(round(n * 0.5 + rx * sc - bs * 0.5))
+		var iy := int(round(n * 0.5 - ry * sc - bs * 0.5))
 		var shade := 1.0 - 0.05 * float(hi.z - k.z) / maxf(ext.z, 1.0)
-		img.set_pixel(ix, iy, Color(c.r * shade, c.g * shade, c.b * shade, 1.0))
+		var pc := Color(c.r * shade, c.g * shade, c.b * shade, 1.0)
+		for ox in bs:
+			for oy in bs:
+				var qx := ix + ox
+				var qy := iy + oy
+				if qx >= 0 and qy >= 0 and qx < n and qy < n:
+					img.set_pixel(qx, qy, pc)
 	# dark outline
 	var out := img.duplicate() as Image
 	for y in n:

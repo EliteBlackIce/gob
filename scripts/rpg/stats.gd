@@ -68,6 +68,8 @@ static func compute() -> Dictionary:
 		s["bottles"] += 2
 	if Game.has_skill("lucky"):
 		s["luck"] += 15.0
+	if Game.has_skill("pickpocket"):
+		s["gold_pct"] += 25.0
 	if Game.has_skill("tough"):
 		s["max_hp"] *= 1.2
 	if Game.has_skill("grog_lover"):

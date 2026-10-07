@@ -536,6 +536,8 @@ func _resolve_swing() -> void:
 
 func roll_damage(mult := 1.0) -> Dictionary:
 	var base := float(stats["dmg"]) * mult * randf_range(0.92, 1.08)
+	if Game.has_skill("berserker") and hp < max_hp * 0.4:
+		base *= 1.3
 	var crit := randf() * 100.0 < minf(float(stats["crit"]), 100.0)
 	if crit:
 		base *= float(stats["crit_dmg"]) / 100.0
@@ -770,6 +772,8 @@ func take_hit(from_dir: Vector3, force: float, dmg_amount: float, cause: String,
 
 
 func _dodge_feedback() -> void:
+	if Game.has_skill("perfect_dodge"):
+		_roll_cd = 0.0
 	if randf() < 0.3:
 		FloatText.spawn(get_parent(), global_position + Vector3(0, 2.0, 0), "DODGE", Color("#9fe6ff"), 0.9)
 

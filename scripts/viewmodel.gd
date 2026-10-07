@@ -104,6 +104,7 @@ func _ready() -> void:
 	add_child(hand_l)
 	weapon_node = MeshInstance3D.new()
 	weapon_node.material_override = VMat.solid(ItemModels.S, 4.0)
+	weapon_node.scale = Vector3.ONE * 0.8
 	hand_r.add_child(weapon_node)
 	_glow = OmniLight3D.new()
 	_glow.omni_range = 2.6
