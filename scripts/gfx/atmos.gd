@@ -176,6 +176,57 @@ static func dungeon(parent: Node, theme: String, dark_mode := false) -> Dictiona
 	return {"env": env}
 
 
+## Themed glowing particles for dungeons: pale wisps in crypts, spores in caves, rising embers in the
+## foundry, snow sparkles on ice. Chunky glowing cubes that drift and twinkle, like Minecraft Dungeons.
+static func dungeon_motes(cam: Node3D, theme: String) -> Array:
+	var pal := DungeonBuilder.theme_colors(theme)
+	var glow: Color = pal["glow"]
+	var out: Array = []
+	var cfg := {"crypt": [0.07, 0.15, 0.0], "sewer": [0.08, 0.2, 0.05], "caves": [0.09, 0.2, 0.08], "furnace": [0.08, 0.9, 0.5], "ice": [0.07, 0.3, -0.12]}
+	var c: Array = cfg.get(theme, cfg["crypt"])
+	for layer in 2:
+		var big := layer == 1
+		var p := CPUParticles3D.new()
+		var bm := BoxMesh.new()
+		var sz: float = float(c[0]) * (2.2 if big else 1.0)
+		bm.size = Vector3(sz, sz, sz)
+		p.mesh = bm
+		var m := StandardMaterial3D.new()
+		m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		var col := glow if not big else glow.lerp(Color.WHITE, 0.35)
+		m.albedo_color = col
+		m.emission_enabled = true
+		m.emission = col
+		m.emission_energy_multiplier = 5.0 if big else 3.5
+		m.disable_fog = true
+		p.material_override = m
+		p.amount = 40 if big else 200
+		p.lifetime = 8.0 if big else 6.0
+		p.preprocess = 8.0
+		p.local_coords = false
+		p.emission_shape = CPUParticles3D.EMISSION_SHAPE_BOX
+		p.emission_box_extents = Vector3(10, 4.0, 10)
+		p.direction = Vector3(0, 1, 0)
+		p.spread = 180.0
+		p.initial_velocity_min = 0.1
+		p.initial_velocity_max = 0.5 + float(c[2])
+		p.gravity = Vector3(0, float(c[1]) * 0.35 * (1.0 if float(c[2]) >= -0.1 else -1.0), 0)
+		var curve := Curve.new()
+		curve.add_point(Vector2(0.0, 0.0))
+		curve.add_point(Vector2(0.15, 1.0))
+		curve.add_point(Vector2(0.4, 0.45))
+		curve.add_point(Vector2(0.6, 1.0))
+		curve.add_point(Vector2(0.85, 0.5))
+		curve.add_point(Vector2(1.0, 0.0))
+		p.scale_amount_curve = curve
+		p.scale_amount_min = 0.6
+		p.scale_amount_max = 1.5
+		p.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		cam.add_child(p)
+		out.append(p)
+	return out
+
+
 ## Drifting, twinkling light motes that follow the camera ("little light particles in the sky").
 static func motes(cam: Node3D, color := Color("#fff2b0"), count := 90, extents := Vector3(16, 7, 16), size := 0.07) -> CPUParticles3D:
 	var p := CPUParticles3D.new()

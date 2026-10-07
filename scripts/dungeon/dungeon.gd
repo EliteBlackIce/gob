@@ -84,6 +84,7 @@ var _elite_bonus := 0.0
 var _ghosts := false
 var _portals: Array = []
 var _portals_for_exit: Array = []
+var _motes: Array = []
 
 
 func _ready() -> void:
@@ -112,6 +113,8 @@ func _ready() -> void:
 	player.ui = ui
 	add_child(player)
 	player.setup_for_run("dungeon")
+	player.motes.emitting = false
+	_motes = Atmos.dungeon_motes(player.cam, theme)
 	player.died.connect(_on_player_died)
 	player.killed_mob.connect(func(_m): pass)
 	var lamp := OmniLight3D.new()
@@ -1069,6 +1072,10 @@ func _descend(_by: Node) -> void:
 		if c is WorldEnvironment:
 			c.queue_free()
 	Atmos.dungeon(self, theme, _dark)
+	for mo in _motes:
+		if is_instance_valid(mo):
+			mo.queue_free()
+	_motes = Atmos.dungeon_motes(player.cam, theme)
 	_load_floor()
 	await ui.fade_to(0.0, 0.5)
 	_announce_intro()
