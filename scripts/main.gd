@@ -26,6 +26,7 @@ func _free_current() -> void:
 func _load_tavern(first_load := false) -> void:
 	_free_current()
 	Sfx.ambience(false)
+	Sfx.set_track("tavern")
 	var t := Tavern.new()
 	t.ui = ui
 	t.start_run.connect(_on_start_run)
@@ -74,6 +75,7 @@ func _on_start_run() -> void:
 		isl.finished.connect(_on_run_finished)
 		add_child(isl)
 		current = isl
+		Sfx.set_track("tavern")
 	ui.capture_wanted = true
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 	Sfx.music_volume(-20.0)

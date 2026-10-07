@@ -160,3 +160,73 @@ class Chunk extends MeshInstance3D:
 			if global_position.y < floor_y:
 				global_position.y = floor_y
 				vel = Vector3.ZERO
+
+
+## A crescent swoosh for melee swings. kind: slash (flat sweep), overhead / slam (vertical arc), stab (streak).
+static func slash(parent: Node, origin: Vector3, fwd: Vector3, radius: float, arc_deg: float, kind: String, color: Color, mirror := false) -> void:
+	var verts := PackedVector3Array()
+	var cols := PackedColorArray()
+	var idx := PackedInt32Array()
+	var right := fwd.cross(Vector3.UP).normalized()
+	var segs := 14
+	var r0 := radius * 0.5
+	var half := deg_to_rad(arc_deg) * 0.5
+	for i in segs + 1:
+		var t := float(i) / segs
+		var a := lerpf(-half, half, t) * (-1.0 if mirror else 1.0)
+		var fade := sin(t * PI)
+		var dir_o: Vector3
+		var dir_i: Vector3
+		var lift := Vector3.ZERO
+		match kind:
+			"overhead", "slam":
+				# vertical arc: from above-forward sweeping down to the floor in front
+				var el := lerpf(deg_to_rad(80.0), deg_to_rad(-15.0), t)
+				dir_o = (fwd * cos(el) + Vector3.UP * sin(el)).normalized()
+				dir_i = dir_o
+				lift = Vector3(0, 0.3, 0)
+			"stab":
+				dir_o = fwd
+				dir_i = fwd
+			_:
+				dir_o = (fwd * cos(a) + right * sin(a)).normalized()
+				dir_i = dir_o
+		var p_out: Vector3
+		var p_in: Vector3
+		if kind == "stab":
+			p_out = origin + fwd * lerpf(0.4, radius, t) + Vector3(0, 0.0, 0) + right * 0.04
+			p_in = origin + fwd * lerpf(0.4, radius, t) - right * 0.04
+		else:
+			p_out = origin + dir_o * radius + lift
+			p_in = origin + dir_i * r0 + lift
+			if kind == "slash":
+				p_out.y += sin(t * PI) * 0.15
+		verts.append(p_in)
+		verts.append(p_out)
+		cols.append(Color(color.r, color.g, color.b, 0.0))
+		cols.append(Color(color.r, color.g, color.b, 0.75 * fade))
+		if i < segs:
+			var b := i * 2
+			idx.append_array([b, b + 1, b + 3, b, b + 3, b + 2])
+	var mesh := ArrayMesh.new()
+	var arr := []
+	arr.resize(Mesh.ARRAY_MAX)
+	arr[Mesh.ARRAY_VERTEX] = verts
+	arr[Mesh.ARRAY_COLOR] = cols
+	arr[Mesh.ARRAY_INDEX] = idx
+	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arr)
+	var mi := MeshInstance3D.new()
+	mi.mesh = mesh
+	var m := StandardMaterial3D.new()
+	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	m.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+	m.vertex_color_use_as_albedo = true
+	m.cull_mode = BaseMaterial3D.CULL_DISABLED
+	m.albedo_color = Color(1.4, 1.4, 1.4, 1.0)
+	mi.material_override = m
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	parent.add_child(mi)
+	var tw := mi.create_tween()
+	tw.tween_property(m, "albedo_color:a", 0.0, 0.2)
+	tw.tween_callback(mi.queue_free)

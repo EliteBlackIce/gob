@@ -63,6 +63,7 @@ var _sep_t := 0.0
 var _push := Vector3.ZERO
 var _uid_beep := 0.0
 var _heal_t := 0.0
+var _bark_t := randf_range(3.0, 9.0)
 var wake_in := -1.0               # >0: wake up after this many seconds (spawn-in delay)
 
 
@@ -254,6 +255,10 @@ func _physics_process(delta: float) -> void:
 		return
 	state_t += delta
 	_cd = maxf(0.0, _cd - delta)
+	_bark_t -= delta
+	if _bark_t <= 0.0:
+		_bark_t = randf_range(7.0, 14.0)
+		_bark()
 	kb = kb.move_toward(Vector3.ZERO, 22.0 * delta)
 	if stun_t > 0.0:
 		stun_t -= delta
@@ -262,6 +267,16 @@ func _physics_process(delta: float) -> void:
 		return
 	_think(delta)
 	_separate(delta)
+
+
+func _bark() -> void:
+	if dist_to_player() > 16.0 or is_boss:
+		return
+	var pool: Array = MobDB.ELITE_BARKS if (elite and randf() < 0.4) else MobDB.BARKS.get(kind, [])
+	if pool.is_empty():
+		return
+	var line: String = pool[randi() % pool.size()]
+	FloatText.spawn(get_parent(), global_position + Vector3(0, body_h * base_scale + 0.9, 0), line, Color("#ffe9a0") if not elite else (affix_data["color"] as Color).lightened(0.3), 0.65, 1.6, 0.5)
 
 
 func _idle_physics(delta: float) -> void:

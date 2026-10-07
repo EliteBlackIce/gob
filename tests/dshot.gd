@@ -27,6 +27,8 @@ func _ready() -> void:
 			await items()
 		"ui":
 			await ui_shots()
+		"tavern":
+			await tavern_shots()
 	get_tree().quit()
 
 
@@ -264,3 +266,28 @@ func _rng(s: int) -> RandomNumberGenerator:
 	var r := RandomNumberGenerator.new()
 	r.seed = s
 	return r
+
+
+func tavern_shots() -> void:
+	Game.reset_save()
+	Game.trophies = ["auditor", "dragon"]
+	Game.house_tier = 2
+	var t := Tavern.new()
+	t.ui = ui
+	add_child(t)
+	await _frames(10)
+	var p := t.player
+	var views := [
+		["smith", Vector3(5.5, 0.1, 4.0), 90.0 - 0.0],
+		["dummy", Vector3(3.0, 0.1, 3.0), -60.0],
+		["realtor", Vector3(-3.5, 0.1, 1.0), 90.0],
+		["trophies", Vector3(-4.0, 0.1, 3.5), 180.0],
+		["stash", Vector3(4.5, 0.1, 0.5), -90.0],
+		["bar", Vector3(1.0, 0.1, 1.0), 20.0],
+	]
+	for v in views:
+		p.global_position = v[1]
+		p.yaw = deg_to_rad(float(v[2]))
+		p.pitch = -0.05
+		await _frames(8)
+		await _snap("tav_" + str(v[0]))

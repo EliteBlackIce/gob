@@ -2,7 +2,7 @@ class_name FloatText
 extends Label3D
 ## Damage numbers: billboard pixel text that pops, drifts up and fades.
 
-static func spawn(parent: Node, pos: Vector3, text: String, color: Color, size := 1.0) -> void:
+static func spawn(parent: Node, pos: Vector3, text: String, color: Color, size := 1.0, secs := 0.8, rise := 1.1) -> void:
 	var l := FloatText.new()
 	l.text = text
 	l.billboard = BaseMaterial3D.BILLBOARD_ENABLED
@@ -21,6 +21,6 @@ static func spawn(parent: Node, pos: Vector3, text: String, color: Color, size :
 	l.scale = Vector3.ONE * 0.3
 	var tw := l.create_tween().set_parallel(true)
 	tw.tween_property(l, "scale", Vector3.ONE * (1.25 if size > 1.1 else 1.0), 0.12).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-	tw.tween_property(l, "position:y", l.position.y + 1.1, 0.8).set_ease(Tween.EASE_OUT)
+	tw.tween_property(l, "position:y", l.position.y + rise, secs).set_ease(Tween.EASE_OUT)
 	tw.chain().tween_property(l, "modulate:a", 0.0, 0.25)
 	tw.chain().tween_callback(l.queue_free)

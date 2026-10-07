@@ -195,6 +195,10 @@ func _wait(secs: float) -> bool:
 
 func _start_attack(dist: float) -> void:
 	busy = true
+	if randf() < 0.45:
+		var lines: Array = MobDB.BOSS_BARKS.get(boss_id, [])
+		if not lines.is_empty():
+			FloatText.spawn(get_parent(), global_position + Vector3(0, body_h + 1.2, 0), lines[randi() % lines.size()], Color("#ffd89a"), 1.0, 2.0, 0.6)
 	var pick := _choose_attack(dist)
 	_last_atk = pick
 	call(pick)

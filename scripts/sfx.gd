@@ -9,6 +9,8 @@ var _music: AudioStreamPlayer
 var _music_stream: AudioStreamWAV
 var _amb: AudioStreamPlayer
 var _amb_tw: Tween
+var _track := "tavern"
+var _tracks := {}
 
 
 func _ready() -> void:
@@ -117,6 +119,23 @@ func music_volume(db: float) -> void:
 	_music.volume_db = db
 
 
+## Swap the background track: "tavern" (shanty), "dungeon" (brooding) or "boss" (driving).
+func set_track(track: String) -> void:
+	if track == _track:
+		return
+	_track = track
+	if not _tracks.has(track):
+		match track:
+			"dungeon":
+				_tracks[track] = _make_dungeon()
+			"boss":
+				_tracks[track] = _make_boss()
+			_:
+				_tracks[track] = _music_stream
+	_music.stream = _tracks[track]
+	_music.play()
+
+
 # wave: 0 sine, 1 square-ish, 2 saw. sweep adds Hz over the duration.
 func _tone(freq: float, dur: float, wave: int, sweep := 0.0, vol := 0.5, decay := 5.0, noise := 0.0, vibrato := 0.0) -> AudioStreamWAV:
 	var n := int(dur * RATE)
@@ -190,6 +209,44 @@ func _make_shanty() -> AudioStreamWAV:
 	for i in total:
 		data.encode_s16(i * 2, clampi(int(buf[i] * 30000.0), -32768, 32767))
 	return _wav(data, true)
+
+
+func _render_track(mel: Array, bass: Array, bpm: float, mel_dur: float, bass_dur: float, mel_decay: float, mel_vol: float, bass_vol: float) -> AudioStreamWAV:
+	var step := 60.0 / bpm / 2.0
+	var total := int(step * mel.size() * RATE)
+	var buf := PackedFloat32Array()
+	buf.resize(total)
+	for i in mel.size():
+		var start := int(i * step * RATE)
+		if mel[i] > 0:
+			_pluck(buf, start, 440.0 * pow(2.0, (mel[i] - 69) / 12.0), mel_dur, mel_decay, mel_vol)
+		if bass[i] > 0:
+			_pluck(buf, start, 440.0 * pow(2.0, (bass[i] - 69) / 12.0), bass_dur, 3.0, bass_vol)
+	var data := PackedByteArray()
+	data.resize(total * 2)
+	for i in total:
+		data.encode_s16(i * 2, clampi(int(buf[i] * 30000.0), -32768, 32767))
+	return _wav(data, true)
+
+
+func _make_dungeon() -> AudioStreamWAV:
+	var mel := [0, 0, 69, 0, 0, 72, 0, 0, 76, 0, 0, 72, 0, 71, 0, 0,
+		0, 0, 67, 0, 0, 71, 0, 0, 74, 0, 0, 71, 0, 69, 0, 0,
+		0, 0, 65, 0, 0, 69, 0, 0, 72, 0, 0, 69, 0, 68, 0, 0,
+		0, 0, 64, 0, 0, 68, 0, 0, 71, 0, 76, 0, 71, 0, 68, 0]
+	var bass := [45, 0, 0, 0, 0, 0, 0, 0, 45, 0, 0, 0, 0, 0, 0, 0,
+		43, 0, 0, 0, 0, 0, 0, 0, 43, 0, 0, 0, 0, 0, 0, 0,
+		41, 0, 0, 0, 0, 0, 0, 0, 41, 0, 0, 0, 0, 0, 0, 0,
+		40, 0, 0, 0, 0, 0, 0, 0, 40, 0, 0, 0, 0, 0, 0, 0]
+	return _render_track(mel, bass, 76.0, 0.9, 1.6, 3.5, 0.34, 0.5)
+
+
+func _make_boss() -> AudioStreamWAV:
+	var mel := [0, 0, 69, 0, 0, 0, 72, 0, 0, 0, 70, 0, 0, 0, 69, 0,
+		0, 0, 67, 0, 0, 0, 70, 0, 0, 0, 68, 0, 0, 0, 67, 0]
+	var bass := [38, 38, 0, 38, 38, 0, 38, 41, 38, 38, 0, 38, 36, 0, 38, 0,
+		36, 36, 0, 36, 36, 0, 36, 39, 36, 36, 0, 36, 34, 0, 36, 0]
+	return _render_track(mel, bass, 150.0, 0.25, 0.3, 8.0, 0.45, 0.55)
 
 
 func _pluck(buf: PackedFloat32Array, start: int, freq: float, dur: float, decay: float, vol: float) -> void:

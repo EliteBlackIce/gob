@@ -474,6 +474,9 @@ func _resolve_swing() -> void:
 	var fwd := _forward()
 	var reach := float(stats["reach"]) + (0.35 if heavy else 0.0)
 	var arc := float(stats["arc"]) * (1.15 if heavy else 1.0)
+	var rcol := ItemDB.rarity_color(int(Game.equipped.get("weapon", {}).get("rarity", 0)))
+	var swoosh := Color("#f4f4ff").lerp(rcol, 0.55)
+	Fx.slash(get_parent(), global_position + Vector3(0, 1.1, 0) + fwd * 0.2, fwd, reach, arc, _atk_type if not heavy else ("slam" if _atk_type == "overhead" else _atk_type), swoosh, combo % 2 == 0)
 	var cos_half := cos(deg_to_rad(arc * 0.5))
 	var origin := global_position
 	var hits := 0

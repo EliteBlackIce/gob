@@ -23,6 +23,7 @@ func _ready() -> void:
 	_build_board_and_boss()
 	_build_decor()
 	_build_services()
+	_build_trophies()
 	_spawn_player()
 	_mk_main = _make_marker(Color("#ffd24a"))
 	_mk_cellar = _make_marker(Color("#7fd8ff"))
@@ -231,9 +232,11 @@ func _update_guide() -> void:
 		return
 	if not _intro_hint and _t > 1.0:
 		_intro_hint = true
-		ui.hint("t_board", "Step 1: walk to the JOB BOARD on the left wall (follow the gold arrow) and press E to pick a parcel.", 8.0)
+		ui.hint("t_board", "Step 1: walk to the JOB BOARD on the left wall (follow the gold arrow) and press E to pick a contract. Dungeons are random every time!", 9.0)
 	if has_job:
-		ui.hint("t_door", "Parcel taken! Now head out the FRONT DOOR (the gold arrow) to start the delivery.", 8.0)
+		ui.hint("t_door", "Contract taken! Swing the training dummy first if you like (left click), then head out the FRONT DOOR (gold arrow).", 8.0)
+	if Game.deliveries + Game.deaths >= 1:
+		ui.hint("t_services", "Between runs: GRUK (east corner) buys, sells and enhances gear. Your STASH is by the fire. MS. DEED sells houses (the ending!). TAB opens your backpack anywhere.", 11.0)
 	if Game.skill_points > 0 and Game.deliveries + Game.deaths >= 1:
 		ui.hint("t_cellar", "You have a skill point! Climb down the CELLAR hatch (blue arrow) to learn a new trick.", 8.0)
 
@@ -422,6 +425,7 @@ func _build_services() -> void:
 	_house_model = MeshInstance3D.new()
 	_house_model.material_override = VMat.solid(VoxHouses.S, 4.0)
 	_house_model.position = Vector3(-6.6, 0.92, 1.0)
+	_house_model.rotation.y = PI * 0.5
 	add_child(_house_model)
 	_refresh_house()
 	_light(Vector3(-6.2, 2.4, 1.0), Color("#ffe0a0"), 1.3, 6.0)
@@ -440,6 +444,49 @@ var _house_model: MeshInstance3D
 func _refresh_house() -> void:
 	if _house_model != null:
 		_house_model.mesh = VoxHouses.build(Game.house_tier)
+		var sc: Array = [0.75, 0.75, 0.7, 0.62, 0.5, 0.42]
+		_house_model.scale = Vector3.ONE * float(sc[clampi(Game.house_tier, 0, 5)])
+
+
+func _build_trophies() -> void:
+	var shelf := Vox.new(0.05)
+	shelf.planks(0, 0, 0, 90, 3, 6, Color("#6a4a30"), true, 2, 22)
+	shelf.box(-1, -1, 0, 91, 0, 6, Color("#4e3220"), 0.05)
+	_mesh(shelf.build(Vector3(45, 0, 0)), 0.05, Vector3(-4.3, 2.3, 7.55), 180.0)
+	Style.label3d(self, "TROPHY SHELF", Vector3(-4.3, 3.9, 7.7), 0.007, Color("#f3d98a"), Vector3(0, 180, 0))
+	var order := ["auditor", "mimic_king", "landlord", "dragon"]
+	var names := {"auditor": "The Auditor", "mimic_king": "Mimic King", "landlord": "The Landlord", "dragon": "Overdue Dragon"}
+	for i in order.size():
+		var id: String = order[i]
+		var got := Game.trophies.has(id)
+		var v := Vox.new(0.05)
+		match id:
+			"auditor":
+				v.box(0, 0, 0, 8, 8, 8, Color("#d8d2bc"), 0.06)
+				v.box(1, 5, 7, 3, 7, 8, Color("#1a1a22"), 0.0)
+				v.box(5, 5, 7, 7, 7, 8, Color("#1a1a22"), 0.0)
+				v.box(-1, 8, -1, 9, 9, 9, Color("#1a1a22"), 0.0)
+				v.box(1, 9, 1, 7, 15, 7, Color("#1a1a22"), 0.0)
+			"mimic_king":
+				v.box(0, 0, 0, 12, 4, 8, Color("#e6b840"), 0.05)
+				for cx in [0, 3, 6, 9, 11]:
+					v.box(cx, 4, 0, cx + 1, 8, 1, Color("#e6b840"), 0.05)
+					v.box(cx, 4, 7, cx + 1, 8, 8, Color("#e6b840"), 0.05)
+				v.box(5, 1, 7, 7, 3, 8, Color("#d83a4a", 0.5), 0.0)
+			"landlord":
+				v.cyl_y(0.0, 0.0, 0, 1, 4.0, 4.0, Color("#e6b840"), 0.03)
+				v.remove_box(-2, 0, -2, 2, 1, 2)
+				for k in 4:
+					v.box(-5 + k * 3, -6, 0, -4 + k * 3, 0, 1, Color("#c8a030"), 0.05)
+					v.box(-6 + k * 3, -8, 0, -3 + k * 3, -6, 1, Color("#c8a030"), 0.05)
+			"dragon":
+				for y in 14:
+					var w := maxi(5 - y / 3, 1)
+					v.box(-w, y, -w, w, y + 1, w, Color("#e8d8a0").darkened(0.02 * y), 0.05)
+		var mi := _mesh(v.build(Vector3(4, 0, 4)), 0.05, Vector3(-6.4 + i * 1.3, 2.55, 7.45), 180.0)
+		mi.visible = got
+		var lab := Style.label3d(self, names[id] if got else "???", Vector3(-6.4 + i * 1.3, 2.15, 7.62), 0.0045, Color("#f3d98a") if got else Color("#7a6a5a"), Vector3(0, 180, 0))
+		lab.visible = true
 
 
 func _smith_menu(_by: Node) -> void:

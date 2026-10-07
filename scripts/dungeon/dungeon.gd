@@ -128,6 +128,8 @@ func _ready() -> void:
 	ui.show_hud(true)
 	ui.capture_wanted = true
 	Sfx.ambience(false)
+	Sfx.set_track("dungeon")
+	Sfx.music_volume(-15.0)
 	_announce_intro()
 
 
@@ -787,6 +789,7 @@ func _activate(r: RoomRT) -> void:
 		ui.combat.boss_name = boss.boss_name
 		ui.combat.boss_title = boss.boss_title
 		boss.wake()
+		Sfx.set_track("boss")
 		r.mobs = [boss]
 		r.wave = 1
 		r.waves = 1
@@ -948,6 +951,7 @@ func _drop_item(pos: Vector3, slot: String, boost: float, rare_floor := false) -
 
 func _on_boss_died(mob: Mob, info: Dictionary) -> void:
 	boss_dead = true
+	Sfx.set_track("dungeon")
 	var r := rooms[g.boss_id]
 	r.state = "cleared"
 	_set_gates(r, false)

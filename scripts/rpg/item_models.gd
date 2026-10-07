@@ -73,7 +73,7 @@ static func weapon(base: String, rarity := 0) -> Vox:
 					var d := dx * dx + dy * dy
 					if d <= 1.0:
 						var rim := d > 0.7
-						var c := Color("#4a4a54") if rim else Color("#2c2c34")
+						var c := Color("#6a6a76") if rim else Color("#4a4a56")
 						if rim:
 							c = _glow(c.lightened(0.25), rarity, 0.8)
 						v.box(x, y, -1 if rim else 0, x + 1, y + 1, 1, c, 0.05)

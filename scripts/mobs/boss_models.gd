@@ -3,8 +3,8 @@ extends RefCounted
 ## Boss bodies. The Auditor, Mimic King and Landlord reuse the mob rigs (scaled up) plus
 ## accessories; the Overdue Dragon has its own rig.
 
-const S := 0.1
-const SCALE := {"auditor": 2.0, "mimic_king": 3.0, "landlord": 2.4}
+const S := 0.13
+const SCALE := {"auditor": 2.3, "mimic_king": 3.0, "landlord": 2.6}
 
 static var _cache := {}
 
@@ -89,6 +89,8 @@ static func _accessorize_king(m: Node3D) -> void:
 
 static func _accessorize_landlord(m: Node3D) -> void:
 	var rig := MobModels.rig_of(m)
+	(rig["Spine"] as Node3D).scale = Vector3(1.45, 1.0, 1.4)       # big boned. Big wallet.
+	(rig["Head"] as Node3D).scale = Vector3(0.72, 1.0, 0.75)
 	var robe := Vox.new(MobModels.S)
 	robe.box(0, 0, 0, 12, 14, 7, Color("#6a2a3a"), 0.06)
 	robe.box(5, 0, 7, 7, 14, 8, Color("#4a1a28"), 0.04)
@@ -156,9 +158,9 @@ static func _dragon() -> Node3D:
 
 
 static func _dragon_parts() -> Dictionary:
-	var red := Color("#b82a1e")
-	var dark := Color("#6a1812")
-	var belly := Color("#e8b860")
+	var red := Color("#9a2c20")
+	var dark := Color("#5a1612")
+	var belly := Color("#d8a860")
 	var d := {}
 	var body := Vox.new(S)
 	body.ellipsoid(0.0, 6.0, 0.0, 8.0, 7.0, 13.0, red, 0.06)

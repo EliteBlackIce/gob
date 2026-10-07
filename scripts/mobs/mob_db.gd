@@ -62,6 +62,31 @@ const ELITE_AFFIXES := {
 }
 
 
+const BARKS := {
+	"skeleton": ["I'M ON MY BREAK", "Per my last email...", "*rattles in HR*", "It's not a bone, it's a lifestyle", "Have you tried bonking less?"],
+	"archer": ["Pew. (professionally)", "Reply-all arrow!", "Sniping is my passion", "I'll be CC'ing you"],
+	"rat": ["SQUEAK (unpaid)", "Cheese?", "*chews the mailbox*", "squeak squeak (union rates)"],
+	"slime": ["blorp", "I am 70% legal", "squelch?", "gloop (gloop)"],
+	"slime_small": ["blip", "mini blorp", "me too!"],
+	"bat": ["SCREEE (junk mail)", "Ask me about warranties", "*flap flap*", "Have you seen my car's extended..."],
+	"mushroom": ["Spores, but make it fun", "Don't breathe.", "We're a fun-guy", "I'm a fungi, fun-guy get it"],
+	"intern": ["Is this paid?", "I have 3 degrees", "Coffee... coffee...", "I'll circle back", "This is not in my job description"],
+	"imp": ["Pay cut incoming!", "Synergy!", "Restructuring you!", "Let's take this offline"],
+	"hound": ["WOOF (overdue)", "Fetch the invoice!", "BORK", "grrr (past due)"],
+	"bomber": ["Hold my fuse!", "BOOM?", "Is this thing on?", "I have a good feeling about this"],
+	"golem": ["Rubble rubble.", "Clerical error.", "STAMP.", "*grinding noises*"],
+	"ghost": ["Boo. (formal)", "I'm Gary.", "Whooo ordered you?", "I've been dead for years, still no PTO"],
+	"mimic": ["Free chest!", "Open me ;)", "Not a mimic.", "Definitely a chest"],
+}
+const ELITE_BARKS := ["I'M A BIG DEAL", "Do you know who I AM?", "Middle management!", "I have a LANYARD"]
+const BOSS_BARKS := {
+	"auditor": ["Your timesheet is a DISGRACE", "AUDIT TIME!", "Pay stub or perish", "Receipts. RECEIPTS."],
+	"mimic_king": ["BOW TO THE CHEST", "Your gold is MY gold", "I'm technically a monarch", "Open wide!"],
+	"landlord": ["RENT IS DUE", "Your lease is TERMINATED", "No pets (that includes you)", "I'm raising the rent. On everything."],
+	"dragon": ["WHERE IS MY PARCEL", "I ordered this on TUESDAY", "Customer service is DEAD to me", "Signature required!"],
+}
+
+
 static func pick_kind(theme: String, tier: int, rng: RandomNumberGenerator) -> String:
 	var table: Array = TABLES[theme]
 	var total := 0.0
