@@ -60,12 +60,14 @@ func _ready() -> void:
 	mi.position = Vector3(0, 0.34, 0)
 	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	_body.add_child(mi)
-	var gl := OmniLight3D.new()
-	gl.light_color = Color("#ffe9a0")
-	gl.light_energy = 0.35
-	gl.omni_range = 2.2
-	gl.position = Vector3(0, 0.5, 0)
-	add_child(gl)
+	var glint := MeshInstance3D.new()
+	var bm := BoxMesh.new()
+	bm.size = Vector3(0.05, 0.05, 0.05)
+	glint.mesh = bm
+	glint.material_override = Fx._unshaded(Color("#fff6c0"), 0.9, 3.0)
+	glint.position = Vector3(0.18, 0.75, 0)
+	glint.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	_body.add_child(glint)
 	_it = Interactable.make(self, Vector3(0, 0.4, 0), "Grab the %s  (~%d copper)" % [DB[id]["name"], value], Callable(self, "_grab"), 2.0)
 	Scanner.mark(self, "%s  %dc" % [DB[id]["name"], value], Color("#ffe27a"))
 

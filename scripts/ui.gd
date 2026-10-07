@@ -99,7 +99,7 @@ func _ready() -> void:
 	_dmg.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_dmg.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_root.add_child(_dmg)
-	_pause_label = _label("PAUSED  -  click to get back to work", 34, Color("#fff3cf"), true, _root)
+	_pause_label = _label("Click to resume", 24, Color("#fff3cf"), true, _root)
 	_pause_label.visible = false
 	_pause_label.set_anchors_preset(Control.PRESET_CENTER)
 	_pause_label.offset_left = -330

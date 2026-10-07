@@ -6,7 +6,7 @@ render_mode diffuse_lambert, cull_back;
 
 uniform float vox = 0.04;            // voxel edge length in metres
 uniform float ppv = 4.0;             // texture pixels per voxel edge
-uniform float tex = 0.016;           // pixel noise strength
+uniform float tex = 0.075;           // pixel noise strength
 uniform vec4 tint : source_color = vec4(1.0);
 uniform float emission_strength = 1.7;
 uniform float wind = 0.0;
@@ -38,9 +38,12 @@ void fragment() {
 	float pix = clamp(vox * 0.5, 0.03, 0.125);
 	vec3 q = floor((lpos - lnorm * vox * 0.02) / pix);
 	float n = hash3(q);
-	float lvl = n < 0.18 ? -1.0 : (n > 0.84 ? 1.0 : 0.0);
+	float lvl = n < 0.22 ? -1.0 : (n > 0.78 ? 1.0 : 0.0);
 	vec3 base = COLOR.rgb * tint.rgb;
 	base *= 1.0 + lvl * tex;
+	// a faint per-voxel tint shift so neighbouring blocks read as separate stones
+	vec3 vq = floor((lpos - lnorm * vox * 0.02) / vox);
+	base *= 1.0 + (hash3(vq + 7.0) - 0.5) * tex * 0.8;
 	if (vox >= 0.2) {
 		vec3 f = fract((lpos - lnorm * vox * 0.02) / vox);
 		vec3 an = abs(lnorm);
@@ -59,7 +62,7 @@ void fragment() {
 			if (f.z < ew) light = max(light, 0.6);
 			if (f.z > 1.0 - ew) dark = max(dark, 0.6);
 		}
-		base *= 1.0 + light * 0.07 - dark * 0.13;
+		base *= 1.0 + light * 0.09 - dark * 0.16;
 	}
 	ALBEDO = mix(base, vec3(1.0), flash);
 	ROUGHNESS = 1.0;

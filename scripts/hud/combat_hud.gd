@@ -168,14 +168,14 @@ func _draw() -> void:
 	# ---- boss bar
 	if boss != null and is_instance_valid(boss) and not boss.dead and boss.awake:
 		var bw := minf(vp.x * 0.5, 720.0)
-		var br := Rect2((vp.x - bw) * 0.5, 54, bw, 20)
-		_txt(Vector2(vp.x * 0.5, 40), boss_name.to_upper(), 26, Color("#ffd89a"), HORIZONTAL_ALIGNMENT_CENTER, 0)
+		var br := Rect2((vp.x - bw) * 0.5, 84, bw, 20)
+		_txt(Vector2(vp.x * 0.5, 72), boss_name.to_upper(), 26, Color("#ffd89a"), HORIZONTAL_ALIGNMENT_CENTER, 0)
 		_bar(br, boss.hp / boss.max_hp, Color("#c02a2a"), Color(0.1, 0.05, 0.05, 0.9))
 		_txt(Vector2(vp.x * 0.5, br.end.y + 20), boss_title, 15, Color("#c8b890"), HORIZONTAL_ALIGNMENT_CENTER, 0)
 		if boss is Boss and (boss as Boss).phase == 2:
 			draw_rect(Rect2(br.position.x + bw * 0.5 - 1, br.position.y - 4, 2, 28), Color(1, 1, 1, 0.5))
 	elif objective != "":
-		_txt(Vector2(vp.x * 0.5, 40), objective, 22, Color("#ffd89a"), HORIZONTAL_ALIGNMENT_CENTER, 0)
+		_txt(Vector2(vp.x * 0.5, 72), objective, 22, Color("#ffd89a"), HORIZONTAL_ALIGNMENT_CENTER, 0)
 	# ---- minimap
 	if dungeon != null and is_instance_valid(dungeon) and dungeon.has_method("minimap_texture"):
 		_minimap(vp)
