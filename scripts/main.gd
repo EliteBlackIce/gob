@@ -4,10 +4,13 @@ extends Node
 var ui: UI
 var current: Node = null
 var _busy := false
+var _pan_t := 0.0
 
 
 func _ready() -> void:
 	randomize()
+	process_mode = Node.PROCESS_MODE_ALWAYS
+	add_child(Camcorder.new())
 	ui = UI.new()
 	add_child(ui)
 	_load_tavern(true)
@@ -37,6 +40,8 @@ func _load_tavern(first_load := false) -> void:
 
 
 func _on_start() -> void:
+	if current is Tavern and (current as Tavern).player != null:
+		(current as Tavern).player.view.visible = true
 	ui.capture_wanted = true
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 	if not Game.seen_intro:
@@ -86,6 +91,7 @@ func _on_start_run() -> void:
 func _on_run_finished(result: Dictionary) -> void:
 	Game.current_job = {}
 	Game.new_day()
+	var verdict := Game.resolve_quota()
 	Game.save_game()
 	_load_tavern()
 	Sfx.music_volume(-12.0)
@@ -93,15 +99,40 @@ func _on_run_finished(result: Dictionary) -> void:
 	ui.show_result(result, func():
 		ui.toast("Day %d.  Grubnik: \"%s\"" % [Game.day, Game.mandate["text"]], Color("#ffd89a"))
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
-		_busy = false)
+		_busy = false
+		if not verdict.is_empty():
+			Sfx.play("deliver" if verdict["ok"] else "alarm")
+			ui.show_letter(str(verdict["title"]), str(verdict["text"]), "Understood (sigh)"))
+
+
+func _process(delta: float) -> void:
+	if ui.title_open and current is Tavern:
+		var pl: Player = (current as Tavern).player
+		if pl != null and is_instance_valid(pl):
+			_pan_t += delta
+			pl.view.visible = false
+			pl.yaw = 0.35 + sin(_pan_t * 0.16) * 1.1
+			pl.pitch = -0.04 + sin(_pan_t * 0.11) * 0.03
+
+
+func _to_title() -> void:
+	_free_current()
+	_busy = false
+	ui.capture_wanted = false
+	_load_tavern()
+	Sfx.music_volume(-12.0)
+	ui.show_title(_on_start, _on_reset)
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if event.is_action_pressed("pause") and not ui.modal_open:
-		if Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
-			Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
-		else:
-			Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+	if event.is_action_pressed("pause") and not ui.title_open:
+		if ui.modal_open and ui.modal_tag == "pause":
+			ui.close_modal()
+		elif not ui.modal_open and ui.capture_wanted and not _busy:
+			ui.show_pause(func(): pass, _to_title)
+		elif ui.modal_open and ui.modal_tag == "options":
+			pass
+		get_viewport().set_input_as_handled()
 	elif event is InputEventMouseButton and event.pressed and Input.mouse_mode == Input.MOUSE_MODE_VISIBLE \
 			and ui.capture_wanted and not ui.modal_open:
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED

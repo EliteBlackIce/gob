@@ -13,6 +13,8 @@ var _shame_labels: Label3D
 var _mk_main: Node3D
 var _mk_cellar: Node3D
 var _intro_hint := false
+var _quota_board: Label3D
+var _board_t := 0.0
 
 
 func _ready() -> void:
@@ -25,6 +27,7 @@ func _ready() -> void:
 	_build_services()
 	_build_trophies()
 	_build_extras()
+	_build_quota_desk()
 	_spawn_player()
 	_mk_main = _make_marker(Color("#ffd24a"))
 	_mk_cellar = _make_marker(Color("#7fd8ff"))
@@ -300,6 +303,10 @@ func _spawn_player() -> void:
 
 func _process(delta: float) -> void:
 	_t += delta
+	_board_t -= delta
+	if _board_t <= 0.0:
+		_board_t = 0.6
+		_refresh_board()
 	_update_guide()
 	_animate_critters()
 
@@ -523,6 +530,74 @@ func _prop(mesh: Mesh, pos: Vector3, yaw := 0.0, scl := 1.0) -> MeshInstance3D:
 	mi.scale = Vector3.ONE * scl
 	add_child(mi)
 	return mi
+
+
+func _build_quota_desk() -> void:
+	var v := Vox.new(0.05)
+	var wood := Color("#6a4a2e")
+	var dark := Color("#3e2a1a")
+	var brass := Color("#d8a830")
+	v.planks(0, 0, 0, 40, 16, 14, wood)
+	v.box(-1, 16, -1, 41, 18, 15, dark)
+	v.box(3, 18, 3, 13, 19, 11, Color("#e8dcb8"))
+	v.box(4, 19, 4, 12, 20, 5, Color("#222222"))
+	v.box(26, 18, 4, 36, 22, 10, dark)
+	v.box(29, 22, 6, 33, 26, 8, brass)
+	for i in 9:
+		var h := 1 + i
+		v.box(33 + i, 24 - h, 7 - h, 34 + i, 24 + h, 7 + h, brass if i % 3 != 2 else Color("#a07818"), 0.04)
+	v.remove_box(37, 20, 4, 42, 30, 11)
+	v.box(0, 16, 0, 2, 22, 2, Color("#c03030"))
+	v.box(15, 18, 5, 21, 21, 9, Color("#8a5a2a"))
+	v.box(16, 21, 6, 20, 22, 8, Color("#c8a040"))
+	var mi := _mesh(v.build(Vector3(20, 0, 7)), 0.05, Vector3(-3.6, 0, 5.9), 180.0)
+	mi.name = "QuotaDesk"
+	Style.solid_box(self, Vector3(2.1, 0.9, 0.8), Vector3(-3.6, 0.45, 5.9))
+	_light(Vector3(-3.6, 2.6, 5.6), Color("#ffd890"), 1.2, 5.0)
+	_quota_board = Style.label3d(self, "", Vector3(-3.6, 2.5, 7.55), 0.008, Color("#ffe9a0"), Vector3(0, 180, 0))
+	Style.label3d(self, "GRUBNIK'S QUOTA DESK", Vector3(-3.6, 3.05, 7.55), 0.007, Color("#f3d98a"), Vector3(0, 180, 0))
+	Interactable.make(self, Vector3(-3.6, 1.0, 5.1), "Grubnik's quota desk (sell scrap / pay up)", Callable(self, "_quota_desk"), 3.0)
+	_refresh_board()
+
+
+func _refresh_board() -> void:
+	if _quota_board == null:
+		return
+	var days := Game.quota_days_left()
+	_quota_board.text = "QUOTA #%d\n%d / %d copper\n%d day%s left" % [Game.quota["n"], Game.quota["paid"], Game.quota["target"], days, "" if days == 1 else "s"]
+	_quota_board.modulate = Color("#ff7a6a") if (days <= 1 and int(Game.quota["paid"]) < int(Game.quota["target"])) else Color("#ffe9a0")
+
+
+func _quota_desk(_by: Node = null) -> void:
+	ui.hint("quota", "QUOTA: Grubnik wants a set amount of copper every few days. Sell scrap from dungeons here (it counts 20% extra) or pay in copper. Meet it for a bonus and a rare gear drop; miss it and he 'adjusts' your wages.", 10.0)
+	var paid := int(Game.quota["paid"])
+	var target := int(Game.quota["target"])
+	var days := Game.quota_days_left()
+	var sub := "Quota #%d: %d / %d copper paid.   Due in %d day%s.\nSack: %d item%s worth about %d copper (%d toward quota)." % [
+		Game.quota["n"], paid, target, days, "" if days == 1 else "s",
+		Game.scrap.size(), "" if Game.scrap.size() == 1 else "s", Game.scrap_total(), int(round(Game.scrap_total() * Game.SCRAP_BONUS))]
+	if paid >= target:
+		sub += "\nQuota met! Wait for the deadline to collect your bonus, or keep overpaying (half of any extra comes back)."
+	var entries: Array = []
+	entries.append({"label": "Sell the whole sack  (+%d)" % int(round(Game.scrap_total() * Game.SCRAP_BONUS)), "desc": "Scrap counts 20% extra toward the quota.", "enabled": not Game.scrap.is_empty(), "cb": func():
+		var worth := Game.sell_scrap()
+		Sfx.play("coin")
+		ui.toast("Sold scrap: +%d toward quota." % worth, Color("#ffe27a"))
+		_refresh_board()
+		_quota_desk()})
+	for amt in [25, 100]:
+		var a: int = amt
+		entries.append({"label": "Pay %d copper" % a, "desc": "", "enabled": Game.copper >= a, "cb": func():
+			Game.pay_quota(a)
+			Sfx.play("coin")
+			_refresh_board()
+			_quota_desk()})
+	entries.append({"label": "Pay everything you've got  (%d)" % Game.copper, "desc": "", "enabled": Game.copper > 0, "cb": func():
+		Game.pay_quota(Game.copper)
+		Sfx.play("coin")
+		_refresh_board()
+		_quota_desk()})
+	ui.show_menu("GRUBNIK'S QUOTA DESK", sub, entries, "Leave")
 
 
 func _build_extras() -> void:

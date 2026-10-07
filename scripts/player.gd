@@ -157,8 +157,8 @@ func setup_for_run(mode_name: Variant) -> void:
 
 func _input(event: InputEvent) -> void:
 	if event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED and not _locked():
-		yaw -= event.relative.x * MOUSE_SENS
-		pitch = clampf(pitch - event.relative.y * MOUSE_SENS, -1.5, 1.5)
+		yaw -= event.relative.x * MOUSE_SENS * float(Game.settings["sens"])
+		pitch = clampf(pitch - event.relative.y * MOUSE_SENS * float(Game.settings["sens"]), -1.5, 1.5)
 
 
 func _locked() -> bool:
@@ -199,7 +199,7 @@ func _physics_process(delta: float) -> void:
 		in2 = Input.get_vector("move_left", "move_right", "move_forward", "move_back")
 	var dir := Vector3(in2.x, 0, in2.y).rotated(Vector3.UP, yaw)
 
-	var speed := 6.2 * float(stats["move_mult"])
+	var speed := 6.2 * float(stats["move_mult"]) * Game.scrap_speed_mult()
 	if mode == "route":
 		speed *= float(Game.mandate["speed"])
 	if carried != null and carried.trait_id == "heavy":
@@ -416,6 +416,8 @@ func _actions(delta: float) -> void:
 			_throw_bottle()
 		if Input.is_action_just_pressed("kick") and _kick_cd <= 0.0 and _roll_t < 0.0:
 			_do_kick()
+		if Input.is_action_just_pressed("scan"):
+			Scanner.ping(self)
 		if Input.is_action_just_pressed("grog") and _grog_cd <= 0.0:
 			_drink_grog()
 		if Input.is_action_just_pressed("ability") and _cast_cd <= 0.0 and mode == "dungeon":
@@ -893,5 +895,5 @@ func _update_camera(delta: float) -> void:
 	cam.h_offset = randf_range(-1, 1) * shake * 0.12
 	cam.v_offset = randf_range(-1, 1) * shake * 0.12
 	_fov_kick = lerpf(_fov_kick, 0.0, 1.0 - exp(-6.0 * delta))
-	cam.fov = 80.0 + 6.0 * speed01 + _fov_kick
+	cam.fov = float(Game.settings["fov"]) + 6.0 * speed01 + _fov_kick
 	arm.spring_length = lerpf(arm.spring_length, cam_dist, 1.0 - exp(-8.0 * delta))

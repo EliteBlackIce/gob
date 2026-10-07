@@ -60,6 +60,16 @@ func _ready() -> void:
 	_bank["potion"] = _cat([_tone(300.0, 0.08, 0, 200.0, 0.5, 8.0), _tone(400.0, 0.08, 0, 200.0, 0.5, 8.0), _tone(560.0, 0.2, 0, 200.0, 0.5, 6.0)])
 	_bank["boss"] = _cat([_tone(70.0, 0.9, 2, -20.0, 0.9, 1.5, 0.3, 10.0), _tone(52.0, 0.9, 2, -10.0, 0.9, 1.5, 0.3, 12.0)])
 	_bank["shrine"] = _cat([_tone(440.0, 0.2, 0, 220.0, 0.4, 3.0), _tone(660.0, 0.5, 0, 220.0, 0.4, 3.0)])
+	_bank["honk"] = _cat([_tone(340.0, 0.1, 2, -40.0, 0.6, 3.0), _tone(290.0, 0.22, 2, -60.0, 0.6, 3.0)])
+	_bank["squeak"] = _tone(1500.0, 0.11, 0, 900.0, 0.5, 7.0)
+	_bank["pfft"] = _tone(130.0, 0.42, 0, -50.0, 0.5, 2.8, 0.85, 14.0)
+	_bank["kazoo"] = _cat([_tone(520.0, 0.14, 2, 40.0, 0.5, 2.0, 0.1, 14.0), _tone(620.0, 0.3, 2, -30.0, 0.5, 2.5, 0.1, 14.0)])
+	_bank["gong"] = _tone(190.0, 1.0, 0, -25.0, 0.7, 2.4, 0.04)
+	_bank["giggle"] = _cat([_tone(900.0, 0.06, 1, 200.0, 0.4, 14.0), _tone(1000.0, 0.06, 1, 200.0, 0.4, 14.0), _tone(1100.0, 0.06, 1, 200.0, 0.4, 14.0), _tone(1000.0, 0.1, 1, -200.0, 0.4, 10.0)])
+	_bank["scan"] = _cat([_tone(260.0, 0.5, 0, 1100.0, 0.5, 3.0), _tone(1400.0, 0.25, 0, 0.0, 0.3, 5.0)])
+	_bank["thump"] = _tone(66.0, 0.3, 0, -26.0, 0.9, 6.0, 0.3)
+	_bank["step"] = _tone(110.0, 0.09, 0, -40.0, 0.6, 18.0, 0.6)
+	_bank["alarm"] = _cat([_tone(700.0, 0.2, 1, 0.0, 0.5, 2.0), _tone(500.0, 0.2, 1, 0.0, 0.5, 2.0), _tone(700.0, 0.2, 1, 0.0, 0.5, 2.0), _tone(500.0, 0.3, 1, 0.0, 0.5, 2.0)])
 	_music = AudioStreamPlayer.new()
 	_music.volume_db = -14.0
 	add_child(_music)
@@ -70,6 +80,10 @@ func _ready() -> void:
 	_amb.stream = _make_ocean()
 	_amb.volume_db = -60.0
 	add_child(_amb)
+	Game.load_settings()
+
+
+var _music_db := -14.0
 
 
 func play(sound: String, vol_db := 0.0, pitch := 1.0) -> void:
@@ -78,7 +92,7 @@ func play(sound: String, vol_db := 0.0, pitch := 1.0) -> void:
 	for p in _pool:
 		if not p.playing:
 			p.stream = _bank[sound]
-			p.volume_db = vol_db - 4.0
+			p.volume_db = vol_db - 4.0 + linear_to_db(clampf(float(Game.settings["sfx"]), 0.0001, 1.0))
 			p.pitch_scale = pitch * randf_range(0.97, 1.03)
 			p.play()
 			return
@@ -116,7 +130,13 @@ func _make_ocean() -> AudioStreamWAV:
 
 
 func music_volume(db: float) -> void:
-	_music.volume_db = db
+	_music_db = db
+	refresh_volume()
+
+
+func refresh_volume() -> void:
+	if _music != null:
+		_music.volume_db = _music_db + linear_to_db(clampf(float(Game.settings["music"]), 0.0001, 1.0))
 
 
 ## Swap the background track: "tavern" (shanty), "dungeon" (brooding) or "boss" (driving).

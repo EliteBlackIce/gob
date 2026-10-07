@@ -5,6 +5,10 @@ signal moment_recorded(caption: String)
 signal leveled_up(level: int)
 
 const SAVE_PATH := "user://gob_save.json"
+const SETTINGS_PATH := "user://settings.json"
+
+## Options screen values (persisted separately from the save so wiping a goblin keeps your volume).
+var settings := {"master": 0.8, "music": 0.7, "sfx": 1.0, "fov": 80.0, "sens": 1.0, "camcorder": true}
 const INV_CAP := 28
 
 const SKILLS := {
@@ -139,6 +143,10 @@ var day := 1
 var deliveries := 0
 var deaths := 0
 var shame: Array = []
+## Lethal-Company-style junk you haul home: [{id, value, run}]. run = picked up this trip (lost on death).
+var scrap: Array = []
+## Grubnik's quota: pay `target` copper-equivalent by `deadline` (a day number) or get "adjusted".
+var quota := {"n": 1, "target": 150, "paid": 0, "deadline": 5, "fails": 0}
 var perk_hp := 0
 var perk_bottles := 0
 var today_jobs: Array = []         # contracts
@@ -172,7 +180,7 @@ func _setup_input() -> void:
 		"move_forward": [KEY_W, KEY_UP], "move_back": [KEY_S, KEY_DOWN],
 		"move_left": [KEY_A, KEY_LEFT], "move_right": [KEY_D, KEY_RIGHT],
 		"jump": [KEY_SPACE], "dash": [KEY_SHIFT], "interact": [KEY_E], "toss": [KEY_G],
-		"kick": [KEY_F], "bottle": [KEY_Q], "grog": [KEY_R], "slap": [KEY_X], "pause": [KEY_ESCAPE], "clip": [KEY_C],
+		"kick": [KEY_F], "scan": [KEY_V], "bottle": [KEY_Q], "grog": [KEY_R], "slap": [KEY_X], "pause": [KEY_ESCAPE], "clip": [KEY_C],
 		"inventory": [KEY_TAB, KEY_I], "ability": [KEY_Z],
 	}
 	for action in map:
@@ -233,6 +241,83 @@ func give_starter_kit() -> void:
 	h["name"] = "Regulation Postal Cap"
 	h["stats"] = {"armor": 2.0, "hp": 6.0}
 	equipped["hat"] = h
+
+
+# ---------------------------------------------------------------- quota & scrap
+
+const QUOTA_DAYS := 4
+const SCRAP_BONUS := 1.2
+
+
+func quota_target_for(n: int) -> int:
+	return 150 + 110 * (n - 1) + 20 * (n - 1) * (n - 1)
+
+
+func quota_days_left() -> int:
+	return maxi(0, int(quota["deadline"]) - day)
+
+
+func scrap_total() -> int:
+	var t := 0
+	for sc in scrap:
+		t += int(sc["value"])
+	return t
+
+
+func scrap_speed_mult() -> float:
+	return maxf(0.78, 1.0 - 0.035 * float(scrap.size()))
+
+
+## Sell the whole sack at the desk. Scrap counts 20% extra toward the quota.
+func sell_scrap() -> int:
+	var worth := int(round(float(scrap_total()) * SCRAP_BONUS))
+	quota["paid"] = int(quota["paid"]) + worth
+	scrap.clear()
+	touch_gear()
+	save_game()
+	return worth
+
+
+func pay_quota(amount: int) -> int:
+	var pay := mini(amount, copper)
+	if pay <= 0:
+		return 0
+	copper -= pay
+	quota["paid"] = int(quota["paid"]) + pay
+	save_game()
+	return pay
+
+
+## Called once per day tick. Returns {} until the deadline, then a verdict for the UI.
+func resolve_quota() -> Dictionary:
+	if day < int(quota["deadline"]):
+		return {}
+	var n: int = int(quota["n"])
+	var target: int = int(quota["target"])
+	var paid: int = int(quota["paid"])
+	var verdict := {}
+	if paid >= target:
+		var over := paid - target
+		var bonus := int(round(float(target) * 0.25)) + int(over * 0.5)
+		copper += bonus
+		var rng := RandomNumberGenerator.new()
+		rng.randomize()
+		var it := ItemDB.roll(maxi(1, level + n), rng, "", mini(4, 1 + (1 if n >= 3 else 0) + (1 if rng.randf() < 0.2 else 0)), 0.0)
+		var got := add_item(it, false)
+		add_xp(60.0 + 40.0 * n)
+		verdict = {"ok": true, "title": "QUOTA MET!", "text": "Grubnik reviews the ledger.\n\"Adequate. I felt something. It was brief.\"\n\nBonus: +%d copper%s\nNew quota (#%d): %d copper in %d days." % [bonus, ("\nReward: %s" % ItemDB.title(it)) if got else "\n(Your pack was full, so Grubnik kept the reward.)", n + 1, quota_target_for(n + 1), QUOTA_DAYS]}
+		quota = {"n": n + 1, "target": quota_target_for(n + 1), "paid": 0, "deadline": day + QUOTA_DAYS, "fails": 0}
+	else:
+		var cut := int(round(float(copper) * 0.35))
+		copper -= cut
+		var fails := int(quota["fails"]) + 1
+		shame.push_front({"name": goblin_name, "cause": "missed quota #%d" % n, "day": day})
+		if shame.size() > 12:
+			shame.resize(12)
+		verdict = {"ok": false, "title": "QUOTA MISSED", "text": "You paid %d of %d.\nGrubnik \"adjusts\" your wages: -%d copper.\n\nThe same quota is due again in %d days. He is smiling. It's awful." % [paid, target, cut, QUOTA_DAYS]}
+		quota = {"n": n, "target": target, "paid": 0, "deadline": day + QUOTA_DAYS, "fails": fails}
+	save_game()
+	return verdict
 
 
 func add_xp(amount: float) -> int:
@@ -423,6 +508,9 @@ func record_death(cause: String) -> void:
 			if it["uid"] == uid:
 				inventory.erase(it)
 	run_loot.clear()
+	for sc in scrap.duplicate():
+		if sc.get("run", false):
+			scrap.erase(sc)
 	save_game()
 
 
@@ -446,6 +534,31 @@ func _save_clip(caption: String) -> void:
 	img.save_png("user://clips/%s_%s.png" % [stamp, safe])
 
 
+# ---------------------------------------------------------------- settings
+
+func load_settings() -> void:
+	if FileAccess.file_exists(SETTINGS_PATH):
+		var f := FileAccess.open(SETTINGS_PATH, FileAccess.READ)
+		if f != null:
+			var d: Variant = JSON.parse_string(f.get_as_text())
+			if typeof(d) == TYPE_DICTIONARY:
+				for k in settings:
+					if d.has(k):
+						settings[k] = d[k]
+	apply_settings()
+
+
+func save_settings() -> void:
+	var f := FileAccess.open(SETTINGS_PATH, FileAccess.WRITE)
+	if f != null:
+		f.store_string(JSON.stringify(settings))
+
+
+func apply_settings() -> void:
+	AudioServer.set_bus_volume_db(0, linear_to_db(clampf(float(settings["master"]), 0.0001, 1.0)))
+	Sfx.refresh_volume()
+
+
 # ---------------------------------------------------------------- save / load
 
 func save_game() -> void:
@@ -456,7 +569,7 @@ func save_game() -> void:
 		"copper": copper, "level": level, "xp": xp, "skill_points": skill_points, "owned": owned.keys(), "day": day,
 		"deliveries": deliveries, "deaths": deaths, "shame": shame, "seen_intro": seen_intro, "hints_seen": hints_seen.keys(),
 		"inventory": inventory, "equipped": equipped, "stash": stash, "grog_stock": grog_stock, "house_tier": house_tier,
-		"trophies": trophies, "max_tier": max_tier, "best_floor": best_floor, "kills": kills, "items_found": items_found, "won": won,
+		"trophies": trophies, "scrap": scrap, "quota": quota, "max_tier": max_tier, "best_floor": best_floor, "kills": kills, "items_found": items_found, "won": won,
 	}))
 
 
@@ -501,6 +614,13 @@ func load_game() -> void:
 	kills = int(data.get("kills", 0))
 	items_found = int(data.get("items_found", 0))
 	won = bool(data.get("won", false))
+	scrap = []
+	for sc in data.get("scrap", []):
+		if typeof(sc) == TYPE_DICTIONARY and Scrap.DB.has(str(sc.get("id", ""))):
+			scrap.append({"id": str(sc["id"]), "value": int(sc.get("value", 10)), "run": false})
+	var q: Variant = data.get("quota", null)
+	if typeof(q) == TYPE_DICTIONARY:
+		quota = {"n": int(q.get("n", 1)), "target": int(q.get("target", 150)), "paid": int(q.get("paid", 0)), "deadline": int(q.get("deadline", day + QUOTA_DAYS)), "fails": int(q.get("fails", 0))}
 
 
 func _fix_items(arr: Array) -> Array:
@@ -539,6 +659,8 @@ func reset_save() -> void:
 	deliveries = 0
 	deaths = 0
 	shame = []
+	scrap = []
+	quota = {"n": 1, "target": 150, "paid": 0, "deadline": 1 + QUOTA_DAYS, "fails": 0}
 	seen_intro = false
 	hints_seen = {}
 	run_loot = []

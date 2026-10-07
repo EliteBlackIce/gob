@@ -14,7 +14,8 @@ Everything - models, terrain, textures, sounds, music - is generated procedurall
 
 | Key | Action |
 | --- | --- |
-| WASD / Mouse | Move / look (first person; ESC releases the mouse) |
+| WASD / Mouse | Move / look (first person) |
+| ESC | Game menu (resume, options, quit to title) |
 | Space | Jump |
 | **LMB** | Attack with your weapon (3-hit combo, the third hit is heavy) |
 | **RMB** (hold) | Block. Tap it right before a hit lands to **parry** and stun the attacker |
@@ -23,7 +24,8 @@ Everything - models, terrain, textures, sounds, music - is generated procedurall
 | Q | Throw a bottle (AoE damage + stun) |
 | R | Drink grog (heal) |
 | Z | Holler (stuns and shoves everything near you, 18 s cooldown) |
-| E | Interact: chests, shrines, doors, portals, shops |
+| E | Interact: chests, shrines, doors, portals, shops, scrap |
+| **V** | **Scan ping**: tags scrap, chests, shrines, exits and bosses through walls for a few seconds |
 | Tab / I | Backpack, equipment, compare gear |
 | G | Toss the parcel (island routes only) |
 | C | Open your saved clips folder |
@@ -45,7 +47,13 @@ Everything - models, terrain, textures, sounds, music - is generated procedurall
    (6 branches, 23 skills).
 5. **Spend it.** Gruk the blacksmith buys, sells and enhances (+5). Your stash lives by the fire. Ms. Deed sells six homes, from a
    Cardboard Box to **The Castle**, each with stash space, HP, grog and XP perks. Buying the Castle is the ending.
-6. **Dying costs you.** The funeral is billed and the dungeon keeps whatever you looted that run. Gear you already own is safe.
+6. **Hit Grubnik's quota (friend-slop mode).** Dungeons are littered with goofy **scrap** (Rubber Ducks, Whoopee Cushions, Cursed
+   Teapots, a Golden Toilet Brush...). Grab it with E, haul it home (a full sack slows you down), and sell it at the **Quota Desk**
+   in the tavern. Grubnik wants a set amount of copper every four days; scrap counts 20% extra. Meet the quota for a bonus and a rare
+   gear drop, miss it and he "adjusts" your wages. Die and the scrap from that trip is gone. Press **V** to scan for loot, and keep an
+   eye out: the dungeon flickers, whispers and occasionally something tall stands at the edge of your torchlight. Don't stare.
+   The whole game runs through a camcorder filter (chunky pixels, dither, REC tag) you can toggle in Options.
+7. **Dying costs you.** The funeral is billed and the dungeon keeps whatever you looted that run. Gear you already own is safe.
 
 The old island route is still there as a quick, parcel-in-arms delivery with crows, inspector slimes and the Customer Service Ogre.
 
@@ -58,9 +66,10 @@ caption banner and **save a screenshot** to `user://clips/` (press **C** in game
 
 ```
 scripts/rpg/      items (ItemDB loot generator, ItemModels voxel weapons/armour + icons), Stats
-scripts/dungeon/  DungeonGen (pure-data layouts), DungeonBuilder (voxel meshes), Dungeon (the run), props, NPCs
+scripts/dungeon/  DungeonGen (pure-data layouts), DungeonBuilder (voxel meshes), Dungeon (the run), props, NPCs, scrap, ambience (spooky events)
 scripts/mobs/     Mob AI, MobDB, MobModels, 4 bosses, training dummy
-scripts/combat/   projectiles, FX, damage numbers, loot drops
+scripts/combat/   projectiles, FX, damage numbers, loot drops, scanner (V ping)
+scripts/gfx/      atmosphere, camcorder filter layer
 scripts/hud/      combat HUD (HP/XP/hotbar/boss bar/minimap)
 scripts/          game.gd (state/skills/contracts/houses), player.gd, viewmodel.gd, tavern.gd, island.gd, ui.gd, menus.gd
 tests/            rpg.gd, smoke.gd, flow.gd (headless), dshot.gd / shot.gd / gallery.gd (screenshots)
@@ -106,10 +115,14 @@ godot --headless --fixed-fps 60 --path . res://tests/flow.tscn
 xvfb-run -a godot --path . --rendering-driver opengl3 res://tests/shot.tscn -- island_wide out.png
 ```
 
-## Feel
+## Look and feel
 
-Hits flash the screen and freeze the game for a few frames; footsteps, dust puffs, an ocean ambience loop
-and a damage flash round out the feedback. Press ESC to release the mouse (a "PAUSED" banner shows).
+* **Minecraft-menu UI**: a fully procedural bitmap pixel font (`scripts/pixel_font.gd`), stone-grey bevelled buttons and panels, a dirt-tile
+  backdrop, a title screen with a logo and yellow splash text over a slow pan of the tavern, a Game Menu, and an Options screen
+  (master / music / SFX volume, FOV, mouse sensitivity, camcorder filter; saved to `user://settings.json`).
+* **Minecraft HUD**: ten hearts, an XP bar and numbered hotbar slots with cooldown fills.
+* **Block textures** are flat colours with a one-texel bevel (like a stone-brick block) instead of fine noise.
+* Hits flash the screen and freeze the game for a few frames; footsteps, dust puffs and damage flashes round out the feedback.
 
 ## Roadmap
 

@@ -481,4 +481,41 @@ func test_dungeon_runs() -> void:
 	check(d2.player.dead and res2[0] != null and res2[0]["outcome"] == "died", "death ends the run")
 	d2.queue_free()
 	await frames(3)
+	# --- friend-slop systems
+	Game.reset_save()
+	check(UI.snap_size(18) == 16 and UI.snap_size(26) == 24 and UI.snap_size(54) == 48, "font sizes snap to the pixel grid")
+	check(Game.settings.has("camcorder") and Game.settings.has("sens"), "options exist")
+	for sid in Scrap.DB:
+		check(Scrap.model(sid).count() > 20, "scrap model: %s" % sid)
+	Game.scrap = [{"id": "duck", "value": 50, "run": true}, {"id": "gong", "value": 100, "run": false}]
+	check(Game.scrap_speed_mult() < 1.0, "carrying scrap slows you")
+	var worth := Game.sell_scrap()
+	check(worth == 180 and Game.scrap.is_empty() and int(Game.quota["paid"]) == 180, "selling scrap pays 20% extra toward quota")
+	Game.day = int(Game.quota["deadline"])
+	var cu := Game.copper
+	var verdict := Game.resolve_quota()
+	check(verdict.get("ok", false) and Game.copper > cu and int(Game.quota["n"]) == 2, "meeting the quota rewards you and raises it")
+	Game.day = int(Game.quota["deadline"])
+	cu = Game.copper
+	verdict = Game.resolve_quota()
+	check(not verdict.get("ok", true) and Game.copper < cu and int(Game.quota["n"]) == 2, "missing the quota docks your wages")
+	Game.scrap = [{"id": "duck", "value": 50, "run": true}]
+	Game.record_death("a unit test")
+	check(Game.scrap.is_empty(), "dying drops this run's scrap")
+	var sc_root := Node3D.new()
+	add_child(sc_root)
+	var sc := Scrap.place(sc_root, Vector3.ZERO, "kazoo", 33, ui)
+	var pl := Player.new()
+	pl.ui = ui
+	sc_root.add_child(pl)
+	pl.setup_for_run("dungeon")
+	await frames(3)
+	check(sc.is_in_group("scannable"), "scrap can be scanned")
+	check(Scanner.ping(pl), "scan ping fires")
+	await frames(2)
+	check(sc.get_node_or_null("ScanTag") != null, "scan ping tags scannable things")
+	sc._grab(pl)
+	check(Game.scrap.size() == 1 and Game.scrap[0]["id"] == "kazoo", "picking scrap up fills the sack")
+	sc_root.queue_free()
+	await frames(3)
 	Game.reset_save()

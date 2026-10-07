@@ -124,6 +124,13 @@ func _ready() -> void:
 	lamp.position = Vector3(0, 1.7, 0)
 	player.add_child(lamp)
 	Game.run_loot.clear()
+	for sc in Game.scrap:
+		sc["run"] = false
+	var amb := DungeonAmbience.new()
+	amb.player = player
+	amb.ui = ui
+	amb.dungeon = self
+	add_child(amb)
 	_load_floor()
 	ui.configure_hud("dungeon")
 	ui.hud_player = player
@@ -254,6 +261,22 @@ func _populate(r: RoomRT) -> void:
 			_pop_customer(r)
 		"stairs":
 			_pop_stairs(r)
+	_scatter_scrap(r)
+
+
+func _scatter_scrap(r: RoomRT) -> void:
+	var n := 0
+	match r.kind:
+		"treasure":
+			n = 2 + (1 if _rng.randf() < 0.4 else 0)
+		"combat":
+			n = 1 if _rng.randf() < 0.6 else 0
+		"shrine", "rest", "trap", "merchant":
+			n = 1 if _rng.randf() < 0.5 else 0
+	for i in n:
+		var t := _random_tile(r, 1, 2.0)
+		var sid := Scrap.random_id(_rng)
+		Scrap.place(content, _tile_pos(t), sid, Scrap.roll_value(sid, tier, _rng), ui)
 
 
 func _gate_kind(r: RoomRT) -> bool:
@@ -331,6 +354,9 @@ func _on_break(b: Breakable) -> void:
 		LootDrop.spawn(content, pos, "bottle", null, 1)
 	elif roll < 0.675:
 		_drop_item(pos, "", 0.0)
+	elif roll < 0.73:
+		var sid := Scrap.random_id(_rng)
+		Scrap.place(content, Vector3(pos.x, 0.0, pos.z), sid, Scrap.roll_value(sid, tier, _rng), ui)
 
 
 func _pop_start(r: RoomRT) -> void:
@@ -368,6 +394,7 @@ func _pop_treasure(r: RoomRT) -> void:
 
 func _make_chest(pos: Vector3, tier_c: int, mimic: bool, r: RoomRT) -> Node3D:
 	var chest := Node3D.new()
+	Scanner.mark(chest, "Chest", Color("#ffd24a"))
 	chest.position = pos
 	chest.rotation.y = float(_rng.randi_range(0, 3)) * PI * 0.5
 	content.add_child(chest)
@@ -442,6 +469,7 @@ func _pop_shrine(r: RoomRT) -> void:
 	mi.material_override = VMat.solid(0.05, 4.0)
 	mi.position = c
 	content.add_child(mi)
+	Scanner.mark(mi, "Shrine", col)
 	var l := FlickerLight.new()
 	l.light_color = col
 	l.light_energy = 1.6
@@ -495,6 +523,7 @@ func _pop_rest(r: RoomRT) -> void:
 	mi.material_override = VMat.solid(0.05, 4.0)
 	mi.position = c
 	content.add_child(mi)
+	Scanner.mark(mi, "Campfire", Color("#ff9a3a"))
 	var l := FlickerLight.new()
 	l.light_color = Color("#ff9a3a")
 	l.light_energy = 2.0
@@ -528,6 +557,7 @@ func _pop_merchant(r: RoomRT) -> void:
 	mi.material_override = VMat.solid(0.05, 4.0)
 	mi.position = c + Vector3(0, 0, -1.0)
 	content.add_child(mi)
+	Scanner.mark(mi, "Merchant", Color("#9fe6b0"))
 	Style.solid_box(content, Vector3(1.8, 1.2, 1.0), c + Vector3(0, 0.6, -1.0)).collision_layer = 1
 	var npc := Npc.make(content, "skeleton", theme, "Grib the Peddler", 1.0, true)
 	npc.position = c + Vector3(0, 0, 1.0)
@@ -612,6 +642,7 @@ func _pop_boss(r: RoomRT) -> void:
 	boss.spawn_cb = Callable(self, "_boss_spawn")
 	content.add_child(boss)
 	boss.global_position = r.world_center() + Vector3(0, 0.1, 0)
+	Scanner.mark(boss, "BOSS", Color("#ff5a4a"))
 	boss.died.connect(_on_boss_died)
 	boss.phase_changed.connect(func(_b, p): ui.announce("%s IS ENRAGED" % boss.boss_name.to_upper(), "Phase %d" % p, Color("#ff5a3a"), 1.8))
 	boss.pacified.connect(func(_b): _on_dragon_pacified())
@@ -630,6 +661,7 @@ func _pop_customer(r: RoomRT) -> void:
 	var kind: String = kinds.get(theme, "skeleton")
 	var npc := Npc.make(content, kind, theme, customer_name, 1.4 if kind == "rat" else 1.1)
 	npc.position = c + Vector3(0, 0, -1.5)
+	Scanner.mark(npc, "%s (customer)" % customer_name, Color("#4ae0ff"))
 	var l := OmniLight3D.new()
 	l.light_color = Color("#ffe0a0")
 	l.light_energy = 1.8
@@ -673,6 +705,7 @@ func _make_portal(pos: Vector3, color: Color, prompt: String, cb: Callable) -> N
 	var node := Node3D.new()
 	node.position = pos
 	content.add_child(node)
+	Scanner.mark(node, prompt.split("  (")[0], color)
 	var mi := MeshInstance3D.new()
 	mi.mesh = DProps.portal(color)
 	mi.material_override = VMat.solid(0.1, 4.0)
@@ -1119,6 +1152,8 @@ func _finish(outcome: String, title: String, lines: String) -> void:
 	Engine.time_scale = 1.0
 	if outcome != "died":
 		Game.run_loot.clear()
+		for sc in Game.scrap:
+			sc["run"] = false
 	var quotes: Array = Game.ROAST_DEATH if outcome == "died" else Game.ROAST_OK
 	var kept: Array = []
 	if outcome != "died":

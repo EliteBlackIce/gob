@@ -6,7 +6,7 @@ render_mode diffuse_lambert, cull_back;
 
 uniform float vox = 0.04;            // voxel edge length in metres
 uniform float ppv = 4.0;             // texture pixels per voxel edge
-uniform float tex = 0.045;           // pixel noise strength
+uniform float tex = 0.016;           // pixel noise strength
 uniform vec4 tint : source_color = vec4(1.0);
 uniform float emission_strength = 1.7;
 uniform float wind = 0.0;
@@ -33,16 +33,34 @@ void vertex() {
 }
 
 void fragment() {
-	// Minecraft-style pixels: a fixed texel size (~6 cm, i.e. 16 px per metre-block), three
-	// brightness levels only, and 2x2 clusters so it reads as texture, not static.
-	float pix = clamp(vox * 0.5, 0.02, 0.0625);
+	// Clean Minecraft block look: nearly flat colour, a whisper of grain, and every large block
+	// gets a 1-texel bevel (light top/left, dark bottom/right) like the stone-brick reference.
+	float pix = clamp(vox * 0.5, 0.03, 0.125);
 	vec3 q = floor((lpos - lnorm * vox * 0.02) / pix);
 	float n = hash3(q);
-	float lvl = n < 0.22 ? -1.0 : (n > 0.78 ? 1.0 : 0.0);
-	float c = hash3(floor(q * 0.5) + 7.0);
-	float blot = c < 0.2 ? -0.5 : (c > 0.85 ? 0.5 : 0.0);
+	float lvl = n < 0.18 ? -1.0 : (n > 0.84 ? 1.0 : 0.0);
 	vec3 base = COLOR.rgb * tint.rgb;
-	base *= 1.0 + (lvl + blot) * tex;
+	base *= 1.0 + lvl * tex;
+	if (vox >= 0.2) {
+		vec3 f = fract((lpos - lnorm * vox * 0.02) / vox);
+		vec3 an = abs(lnorm);
+		float ew = pix / vox;
+		float dark = 0.0;
+		float light = 0.0;
+		if (an.y < 0.5) {
+			if (f.y > 1.0 - ew) light = 1.0;
+			if (f.y < ew) dark = 1.0;
+		}
+		if (an.x < 0.5) {
+			if (f.x < ew) light = max(light, 0.6);
+			if (f.x > 1.0 - ew) dark = max(dark, 0.6);
+		}
+		if (an.z < 0.5 && an.x > 0.5) {
+			if (f.z < ew) light = max(light, 0.6);
+			if (f.z > 1.0 - ew) dark = max(dark, 0.6);
+		}
+		base *= 1.0 + light * 0.07 - dark * 0.13;
+	}
 	ALBEDO = mix(base, vec3(1.0), flash);
 	ROUGHNESS = 1.0;
 	SPECULAR = 0.0;

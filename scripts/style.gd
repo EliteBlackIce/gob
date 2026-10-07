@@ -25,6 +25,8 @@ static func label3d(parent: Node, text: String, pos: Vector3, size := 0.02, colo
 	if billboard:
 		l.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	l.text = text
+	l.font = PixelFont.get_font()
+	l.font_size = 32
 	l.pixel_size = size
 	l.modulate = color
 	l.outline_size = 8

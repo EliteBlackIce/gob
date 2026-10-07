@@ -29,6 +29,10 @@ func _ready() -> void:
 			await ui_shots()
 		"tavern":
 			await tavern_shots()
+		"menus":
+			await menu_shots()
+		"friend":
+			await friend_shots()
 	get_tree().quit()
 
 
@@ -301,3 +305,79 @@ func tavern_shots() -> void:
 		p.pitch = -0.05
 		await _frames(8)
 		await _snap("tav_" + str(v[0]))
+
+
+func menu_shots() -> void:
+	Game.reset_save()
+	var t := Tavern.new()
+	t.ui = ui
+	add_child(t)
+	await _frames(10)
+	t.player.yaw = 0.9
+	ui.show_title(func(): pass, func(): pass)
+	await _snap("title")
+	ui.show_options(func(): pass)
+	await _snap("options")
+	ui.close_modal(false)
+	ui.show_hud(true)
+	ui.capture_wanted = true
+	ui.show_pause(func(): pass, func(): pass)
+	await _snap("pause")
+	ui.close_modal(false)
+	ui.show_letter("WELCOME, NEW GOBLIN", "Congratulations on your employment.\n\nThe tavern is the post office. Pick a contract, walk out the front door, kill whatever's in the way.", "Oh no")
+	await _snap("letter")
+
+
+func friend_shots() -> void:
+	Game.reset_save()
+	Game.scrap = [{"id": "duck", "value": 31, "run": false}, {"id": "gong", "value": 66, "run": false}]
+	var root := _stage("crypt")
+	var cam := Camera3D.new()
+	cam.fov = 55.0
+	root.add_child(cam)
+	cam.current = true
+	var ids := Scrap.DB.keys()
+	var rng := RandomNumberGenerator.new()
+	for i in ids.size():
+		var sc := Scrap.place(root, Vector3((i - (ids.size() - 1) * 0.5) * 0.8, 0, -3.0), ids[i], Scrap.roll_value(ids[i], 2, rng), ui)
+		sc.name = "S%d" % i
+	cam.position = Vector3(0, 1.5, 1.2)
+	cam.look_at(Vector3(0, 0.3, -3.0), Vector3.UP)
+	await _frames(6)
+	await _snap("scrap")
+	var p := Player.new()
+	p.ui = ui
+	root.add_child(p)
+	p.setup_for_run("dungeon")
+	p.global_position = Vector3(0, 0.1, 2.0)
+	p.yaw = 0.0
+	ui.hud_player = p
+	ui.configure_hud("dungeon")
+	ui.show_hud(true)
+	await _frames(4)
+	p.hp = p.max_hp
+	p.dead = false
+	p.cam.make_current()
+	await _frames(2)
+	Scanner.ping(p)
+	await _frames(10)
+	await _snap("scan")
+	root.queue_free()
+	await _frames(2)
+	var cc := Camcorder.new()
+	add_child(cc)
+	var t := Tavern.new()
+	t.ui = ui
+	add_child(t)
+	await _frames(10)
+	t.player.view.visible = false
+	t.player.global_position = Vector3(-3.6, 0.1, 3.4)
+	t.player.yaw = deg_to_rad(180.0)
+	t.player.pitch = -0.05
+	await _frames(6)
+	await _snap("desk_cam")
+	cc.queue_free()
+	await _frames(3)
+	await _snap("desk")
+	t._quota_desk()
+	await _snap("desk_menu")

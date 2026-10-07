@@ -4,7 +4,7 @@ extends CanvasLayer
 ## "clip" banner that fires when something hilarious happens.
 
 const INK := Color("#120d0a")
-const TEXT := Color("#eadfc4")
+const TEXT := Color("#e4e4e4")
 const PARCH := Color("#1c1612")
 const PARCH_DARK := Color("#120d0a")
 const WOOD := Color("#4a4038")
@@ -100,6 +100,7 @@ func _ready() -> void:
 	_dmg.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_root.add_child(_dmg)
 	_pause_label = _label("PAUSED  -  click to get back to work", 34, Color("#fff3cf"), true, _root)
+	_pause_label.visible = false
 	_pause_label.set_anchors_preset(Control.PRESET_CENTER)
 	_pause_label.offset_left = -330
 	_pause_label.offset_right = 330
@@ -140,108 +141,184 @@ static func _stone_noise(x: int, y: int, base: Color, amt := 0.1) -> Color:
 	return Color(base.r * f * big, base.g * f * big, base.b * f * big)
 
 
-## Dark stone slab with a gold inset border and studded corners.
+## Minecraft-menu container: flat dark stone with a black outline and a light/dark bevel.
 static func panel_texture() -> ImageTexture:
 	if _panel_tex != null:
 		return _panel_tex
-	var n := 64
+	var n := 24
 	var img := Image.create(n, n, false, Image.FORMAT_RGBA8)
 	for y in n:
 		for x in n:
-			var d := mini(mini(x, n - 1 - x), mini(y, n - 1 - y))
-			var c := _stone_noise(x, y, Color("#241d18"), 0.12)
+			var c := Color("#363636")
+			var dl := x                      # distance from each edge
+			var dr := n - 1 - x
+			var dt := y
+			var db := n - 1 - y
+			var d := mini(mini(dl, dr), mini(dt, db))
 			if d < 2:
-				c = Color("#0a0705")
-			elif d < 4:
-				c = Color("#e8b848")
-			elif d < 6:
-				c = Color("#6a4c20")
-			elif d < 7:
-				c = Color("#0a0705")
-			var cx := mini(x, n - 1 - x)
-			var cy := mini(y, n - 1 - y)
-			if cx < 11 and cy < 11 and cx + cy < 12 and cx + cy > 8:
-				c = Color("#f4d070") if (cx + cy) % 2 == 0 else c
+				c = Color("#050505")
+			elif d < 5:
+				if (dt == d and dt < db) or (dl == d and dl < dr):
+					c = Color("#6d6d6d")        # light top/left
+				else:
+					c = Color("#1c1c1c")        # dark bottom/right
 			img.set_pixel(x, y, c)
 	_panel_tex = ImageTexture.create_from_image(img)
 	return _panel_tex
 
 
-## Chunky bevelled stone button. state: 0 normal, 1 hover, 2 pressed.
+## Minecraft button. state: 0 normal, 1 hover, 2 pressed, 3 disabled.
 static func button_texture(state: int) -> ImageTexture:
 	if _btn_tex.has(state):
 		return _btn_tex[state]
-	var n := 32
+	var n := 24
 	var img := Image.create(n, n, false, Image.FORMAT_RGBA8)
-	var base := Color("#4e443a")
-	if state == 1:
-		base = Color("#665a4a")
-	elif state == 2:
-		base = Color("#3a322a")
+	var base: Color = [Color("#6f6f6f"), Color("#7d86a6"), Color("#555555"), Color("#3a3a3a")][state]
 	for y in n:
 		for x in n:
-			var d := mini(mini(x, n - 1 - x), mini(y, n - 1 - y))
-			var c := _stone_noise(x, y, base, 0.1)
+			var dl := x
+			var dr := n - 1 - x
+			var dt := y
+			var db := n - 1 - y
+			var d := mini(mini(dl, dr), mini(dt, db))
+			var c: Color = base
 			if d < 2:
-				c = Color("#f3c14a") if state == 1 else Color("#120d0a")
+				c = Color("#ffffff") if state == 1 else Color("#050505")
 			elif d < 4:
-				var top_left := (x < 4 and x <= n - 1 - y) or (y < 4 and y <= n - 1 - x)
-				if (top_left and state != 2) or (not top_left and state == 2):
-					c = c.lightened(0.3)
+				var top_left := (dt == d and dt < db) or (dl == d and dl < dr)
+				if (top_left and state != 2 and state != 3) or (not top_left and state == 2):
+					c = base.lightened(0.28)
 				else:
-					c = c.darkened(0.32)
+					c = base.darkened(0.34)
+			elif y > n - 8 and state != 2:
+				c = base.darkened(0.08)
 			img.set_pixel(x, y, c)
 	var t := ImageTexture.create_from_image(img)
 	_btn_tex[state] = t
 	return t
 
 
+static var _dirt_tex: ImageTexture
+
+
+## 16x16 dirt tile scaled up 6x (nearest): the classic menu background.
+static func dirt_texture() -> ImageTexture:
+	if _dirt_tex != null:
+		return _dirt_tex
+	var img := Image.create(16, 16, false, Image.FORMAT_RGBA8)
+	for y in 16:
+		for x in 16:
+			var h := Vox.hash3(x, y, 21)
+			var base := Color("#5c4128")
+			if h < 0.2:
+				base = Color("#4a3320")
+			elif h > 0.82:
+				base = Color("#6e5030")
+			elif h > 0.7 and Vox.hash3(x / 2, y / 2, 3) > 0.5:
+				base = Color("#524e4a")
+			img.set_pixel(x, y, base)
+	img.resize(96, 96, Image.INTERPOLATE_NEAREST)
+	_dirt_tex = ImageTexture.create_from_image(img)
+	return _dirt_tex
+
+
+static var _grab_tex: Array = []
+
+
+static func slider_grabber(hover: bool) -> ImageTexture:
+	if _grab_tex.is_empty():
+		for h in 2:
+			var img := Image.create(16, 36, false, Image.FORMAT_RGBA8)
+			var base := Color("#7d86a6") if h == 1 else Color("#8a8a8a")
+			for y in 36:
+				for x in 16:
+					var d := mini(mini(x, 15 - x), mini(y, 35 - y))
+					var c := base
+					if d < 2:
+						c = Color("#050505")
+					elif d < 4:
+						c = base.lightened(0.3) if (x < 4 or y < 4) else base.darkened(0.35)
+					img.set_pixel(x, y, c)
+			_grab_tex.append(ImageTexture.create_from_image(img))
+	return _grab_tex[1 if hover else 0]
+
+
 func _make_theme() -> Theme:
 	var th := Theme.new()
-	th.default_font_size = 20
-	for st in [["normal", 0], ["hover", 1], ["pressed", 2], ["disabled", 0]]:
+	th.default_font = PixelFont.get_font()
+	th.default_font_size = 16
+	for st in [["normal", 0], ["hover", 1], ["pressed", 2], ["disabled", 3]]:
 		var sb := StyleBoxTexture.new()
 		sb.texture = button_texture(st[1])
-		sb.texture_margin_left = 5
-		sb.texture_margin_right = 5
-		sb.texture_margin_top = 5
-		sb.texture_margin_bottom = 5
-		sb.content_margin_left = 16
-		sb.content_margin_right = 16
-		sb.content_margin_top = 9
-		sb.content_margin_bottom = 9
-		if st[0] == "disabled":
-			sb.modulate_color = Color(0.55, 0.55, 0.55)
+		sb.texture_margin_left = 4
+		sb.texture_margin_right = 4
+		sb.texture_margin_top = 4
+		sb.texture_margin_bottom = 4
+		sb.content_margin_left = 14
+		sb.content_margin_right = 14
+		sb.content_margin_top = 8
+		sb.content_margin_bottom = 10
 		th.set_stylebox(st[0], "Button", sb)
-	th.set_stylebox("focus", "Button", _box(Color(0, 0, 0, 0), GOLD, 2))
-	th.set_color("font_color", "Button", TEXT)
-	th.set_color("font_hover_color", "Button", Color("#fff3c0"))
-	th.set_color("font_disabled_color", "Button", Color("#8a7e6a"))
-	th.set_font_size("font_size", "Button", 19)
+	th.set_stylebox("focus", "Button", StyleBoxEmpty.new())
+	th.set_color("font_color", "Button", Color("#e8e8e8"))
+	th.set_color("font_hover_color", "Button", Color("#ffffa0"))
+	th.set_color("font_pressed_color", "Button", Color("#ffffa0"))
+	th.set_color("font_disabled_color", "Button", Color("#9a9a9a"))
+	th.set_color("font_shadow_color", "Button", Color("#2a2a2a"))
+	th.set_constant("shadow_offset_x", "Button", 2)
+	th.set_constant("shadow_offset_y", "Button", 2)
+	th.set_font_size("font_size", "Button", 16)
 	var psb := StyleBoxTexture.new()
 	psb.texture = panel_texture()
-	psb.texture_margin_left = 14
-	psb.texture_margin_right = 14
-	psb.texture_margin_top = 14
-	psb.texture_margin_bottom = 14
-	psb.content_margin_left = 30
-	psb.content_margin_right = 30
-	psb.content_margin_top = 24
-	psb.content_margin_bottom = 24
+	psb.texture_margin_left = 5
+	psb.texture_margin_right = 5
+	psb.texture_margin_top = 5
+	psb.texture_margin_bottom = 5
+	psb.content_margin_left = 26
+	psb.content_margin_right = 26
+	psb.content_margin_top = 20
+	psb.content_margin_bottom = 20
 	th.set_stylebox("panel", "PanelContainer", psb)
 	th.set_stylebox("fill", "ProgressBar", _box(Color("#7ed957"), Color(0, 0, 0, 0), 0, 0, 0))
-	th.set_stylebox("background", "ProgressBar", _box(Color(0.1, 0.07, 0.04, 0.85), INK, 2, 0, 0))
+	th.set_stylebox("background", "ProgressBar", _box(Color(0.1, 0.1, 0.1, 0.9), INK, 2, 0, 0))
+	# sliders (Options screen)
+	var track := StyleBoxFlat.new()
+	track.bg_color = Color("#101010")
+	track.border_color = Color("#6d6d6d")
+	track.set_border_width_all(2)
+	track.content_margin_top = 12
+	track.content_margin_bottom = 12
+	th.set_stylebox("slider", "HSlider", track)
+	th.set_stylebox("grabber_area", "HSlider", StyleBoxEmpty.new())
+	th.set_stylebox("grabber_area_highlight", "HSlider", StyleBoxEmpty.new())
+	th.set_icon("grabber", "HSlider", slider_grabber(false))
+	th.set_icon("grabber_highlight", "HSlider", slider_grabber(true))
+	th.set_icon("grabber_disabled", "HSlider", slider_grabber(false))
+	th.set_constant("center_grabber", "HSlider", 1)
 	return th
 
 
+## The bitmap font is only crisp at whole multiples of its 8px design size.
+static func snap_size(size: int) -> int:
+	if size < 24:
+		return 16
+	if size < 36:
+		return 24
+	if size < 48:
+		return 32
+	return 48
+
+
 func _label(text: String, size := 20, color := Color.WHITE, outline := true, parent: Node = null) -> Label:
+	size = snap_size(size)
 	var l := Label.new()
 	l.text = text
 	l.add_theme_font_size_override("font_size", size)
 	l.add_theme_color_override("font_color", color)
-	if outline:
-		l.add_theme_color_override("font_outline_color", Color(0.08, 0.05, 0.03))
-		l.add_theme_constant_override("outline_size", maxi(4, size / 5))
+	l.add_theme_color_override("font_shadow_color", Color(0.12, 0.12, 0.12, 0.95))
+	var so := maxi(2, size / 8)
+	l.add_theme_constant_override("shadow_offset_x", so)
+	l.add_theme_constant_override("shadow_offset_y", so)
 	if parent != null:
 		parent.add_child(l)
 	return l
@@ -251,9 +328,7 @@ func _ink(text: String, size := 20, parent: Node = null) -> Label:
 	var l := _label(text, size, TEXT, false, parent)
 	l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	if size >= 30:
-		l.add_theme_color_override("font_color", GOLD)
-		l.add_theme_color_override("font_outline_color", Color("#120d0a"))
-		l.add_theme_constant_override("outline_size", 4)
+		l.add_theme_color_override("font_color", Color("#ffffa0"))
 	return l
 
 
@@ -324,7 +399,7 @@ func _build_hud() -> void:
 	_hint_panel.offset_top = -250
 	_hint_panel.offset_bottom = -170
 	_hint_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_hint_panel.add_theme_stylebox_override("panel", _box(Color(0.1, 0.06, 0.03, 0.82), GOLD, 3, 10, 14))
+	_hint_panel.self_modulate = Color(1, 1, 1, 0.9)
 	_hint_label = _label("", 21, Color("#fff3cf"), false, _hint_panel)
 	_hint_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_hint_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -335,11 +410,18 @@ func _build_hud() -> void:
 	_crosshair = Control.new()
 	_crosshair.set_anchors_preset(Control.PRESET_CENTER)
 	_hud.add_child(_crosshair)
-	var dot := ColorRect.new()
-	dot.color = Color(1, 1, 1, 0.75)
-	dot.size = Vector2(5, 5)
-	dot.position = Vector2(-2, -2)
-	_crosshair.add_child(dot)
+	for r in [Rect2(-9, -2, 18, 4), Rect2(-2, -9, 4, 18)]:
+		var edge := ColorRect.new()
+		edge.color = Color(0, 0, 0, 0.55)
+		edge.position = r.position - Vector2(1, 1)
+		edge.size = r.size + Vector2(2, 2)
+		_crosshair.add_child(edge)
+	for r in [Rect2(-8, -1, 16, 2), Rect2(-1, -8, 2, 16)]:
+		var arm := ColorRect.new()
+		arm.color = Color(1, 1, 1, 0.85)
+		arm.position = r.position
+		arm.size = r.size
+		_crosshair.add_child(arm)
 	_hud.visible = false
 
 
@@ -605,16 +687,38 @@ func _unhandled_input(event: InputEvent) -> void:
 
 # ---------- modal windows ----------
 
-func _open_modal(min_width := 640) -> VBoxContainer:
+func _open_screen(dirt_bg := true) -> void:
 	close_modal(false)
 	_modal = Control.new()
 	_modal.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_modal.mouse_filter = Control.MOUSE_FILTER_STOP
-	var dim := ColorRect.new()
-	dim.color = Color(0.03, 0.02, 0.04, 0.55)
-	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
-	dim.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_modal.add_child(dim)
+	_modal.process_mode = Node.PROCESS_MODE_ALWAYS
+	_root.add_child(_modal)
+	_root.move_child(_fade, _root.get_child_count() - 1)
+	modal_open = true
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	if dirt_bg:
+		_modal_dirt()
+
+
+func _modal_dirt() -> void:
+	var dirt := TextureRect.new()
+	dirt.texture = dirt_texture()
+	dirt.stretch_mode = TextureRect.STRETCH_TILE
+	dirt.set_anchors_preset(Control.PRESET_FULL_RECT)
+	dirt.modulate = Color(0.32, 0.32, 0.32, 0.9)
+	dirt.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_modal.add_child(dirt)
+
+
+func _open_modal(min_width := 640, dim := false) -> VBoxContainer:
+	_open_screen(not dim)
+	if dim:
+		var shade := ColorRect.new()
+		shade.color = Color(0, 0, 0, 0.62)
+		shade.set_anchors_preset(Control.PRESET_FULL_RECT)
+		shade.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_modal.add_child(shade)
 	var center := CenterContainer.new()
 	center.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_modal.add_child(center)
@@ -624,10 +728,6 @@ func _open_modal(min_width := 640) -> VBoxContainer:
 	var vb := VBoxContainer.new()
 	vb.add_theme_constant_override("separation", 10)
 	panel.add_child(vb)
-	_root.add_child(_modal)
-	_root.move_child(_fade, _root.get_child_count() - 1)
-	modal_open = true
-	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	return vb
 
 
@@ -637,15 +737,18 @@ func close_modal(recapture := true) -> void:
 	_modal = null
 	modal_open = false
 	modal_tag = ""
+	title_open = false
+	if get_tree() != null:
+		get_tree().paused = false
 	if recapture and capture_wanted:
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 
 
-func _button(text: String, parent: Node, cb: Callable, enabled := true) -> Button:
+func _button(text: String, parent: Node, cb: Callable, enabled := true, center := false) -> Button:
 	var b := Button.new()
 	b.text = text
 	b.disabled = not enabled
-	b.alignment = HORIZONTAL_ALIGNMENT_LEFT
+	b.alignment = HORIZONTAL_ALIGNMENT_CENTER if center else HORIZONTAL_ALIGNMENT_LEFT
 	b.pressed.connect(func():
 		Sfx.play("click")
 		cb.call())
@@ -730,17 +833,179 @@ func show_skills(on_close := Callable()) -> void:
 			on_close.call())
 
 
+class Logo extends Control:
+	var lines: Array = ["GOBLIN", "DELIVERY CO."]
+	var font: Font
+
+	func _draw() -> void:
+		if font == null:
+			return
+		var y := 52.0
+		for i in lines.size():
+			var sz := 64 if i == 0 else 40
+			var w := font.get_string_size(lines[i], HORIZONTAL_ALIGNMENT_LEFT, -1, sz).x
+			var x := (size.x - w) * 0.5
+			var q := float(sz) / 16.0
+			for d in [Vector2(-1, 0), Vector2(1, 0), Vector2(0, -1), Vector2(0, 1), Vector2(-1, -1), Vector2(1, 1), Vector2(-1, 1), Vector2(1, -1)]:
+				draw_string(font, Vector2(x, y) + d * q * 2.0 + Vector2(q, q), lines[i], HORIZONTAL_ALIGNMENT_LEFT, -1, sz, Color("#0a0a0a"))
+			draw_string(font, Vector2(x, y) + Vector2(q, q), lines[i], HORIZONTAL_ALIGNMENT_LEFT, -1, sz, Color("#5a5a5a"))
+			draw_string(font, Vector2(x, y), lines[i], HORIZONTAL_ALIGNMENT_LEFT, -1, sz, Color("#bdbdbd") if i == 0 else Color("#a9b894"))
+			y += float(sz) + 22.0
+
+
+const SPLASHES := [
+	"Now with 40% more goblin!", "Parcels may scream!", "Grubnik is watching.", "Also try Minecraft!", "100% pure copper!",
+	"Quota is life!", "Don't feed the mimic!", "Fragile: contents are your friends.", "Friend slop certified!", "Not liable for stairs!",
+	"The dungeon bites back!", "Hold E to deliver!", "Voxels everywhere!", "Bring a buddy (or two)!", "Please don't lick the slime.",
+	"Parry or perish!", "Employee of the month: you?", "Scrap is money!", "Rated G for Goblin!", "Insurance not included.",
+]
+
+var title_open := false
+var _splash: Label = null
+
+
 func show_title(on_start: Callable, on_reset: Callable) -> void:
-	var vb := _open_modal(760)
-	_ink("GOBLIN DELIVERY CO.", 54, vb)
-	_ink("You are a goblin. Your boss doesn't care. The parcels are screaming.\nDeliver them anyway.", 22, vb)
-	_ink("WASD move   Mouse look   SPACE jump   E interact   TAB inventory\nLMB attack   RMB block (parry just before a hit!)   SHIFT dodge roll   F kick\nQ throw bottle   R grog   Z holler   G toss parcel (island)   ESC release mouse", 17, vb)
-	_button("Clock in", vb, func():
+	_open_screen(false)
+	title_open = true
+	show_hud(false)
+	var shade := ColorRect.new()
+	shade.color = Color(0, 0, 0, 0.42)
+	shade.set_anchors_preset(Control.PRESET_FULL_RECT)
+	shade.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_modal.add_child(shade)
+	var vb := VBoxContainer.new()
+	vb.set_anchors_preset(Control.PRESET_FULL_RECT)
+	vb.add_theme_constant_override("separation", 0)
+	_modal.add_child(vb)
+	var top := Control.new()
+	top.custom_minimum_size = Vector2(0, 40)
+	vb.add_child(top)
+	var logo := Logo.new()
+	logo.font = PixelFont.get_font()
+	logo.custom_minimum_size = Vector2(0, 190)
+	vb.add_child(logo)
+	_splash = _label(SPLASHES[randi() % SPLASHES.size()], 24, Color("#ffff55"), true, _modal)
+	_splash.anchor_left = 0.5
+	_splash.anchor_right = 0.5
+	_splash.offset_left = 150
+	_splash.offset_top = 150
+	_splash.rotation = -0.3
+	_splash.pivot_offset = Vector2(0, 12)
+	var tw := _splash.create_tween().set_loops()
+	tw.tween_property(_splash, "scale", Vector2(1.12, 1.12), 0.45).set_trans(Tween.TRANS_SINE)
+	tw.tween_property(_splash, "scale", Vector2(0.95, 0.95), 0.45).set_trans(Tween.TRANS_SINE)
+	var col := VBoxContainer.new()
+	col.custom_minimum_size = Vector2(440, 0)
+	col.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	col.add_theme_constant_override("separation", 8)
+	vb.add_child(col)
+	var sub := _label("You are a goblin. Your boss doesn't care. The parcels are screaming.", 16, Color("#dddddd"), true, col)
+	sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	sub.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	var gap := Control.new()
+	gap.custom_minimum_size = Vector2(0, 14)
+	col.add_child(gap)
+	_button("Clock In", col, func():
+		title_open = false
 		close_modal(false)
-		on_start.call())
-	_button("Wipe save (new goblin dynasty)", vb, func():
+		show_hud(true)
+		on_start.call(), true, true)
+	_button("Options...", col, func():
+		show_options(func(): show_title(on_start, on_reset)), true, true)
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 8)
+	col.add_child(row)
+	var b1 := _button("Wipe Save", row, func():
 		on_reset.call()
-		toast("Save wiped. Grubnik has forgotten you.", Color("#ffd89a")))
+		toast("Save wiped. Grubnik has forgotten you.", Color("#ffd89a")), true, true)
+	b1.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var b2 := _button("Quit Game", row, func(): get_tree().quit(), true, true)
+	b2.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var fill := Control.new()
+	fill.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	vb.add_child(fill)
+	var foot := HBoxContainer.new()
+	foot.custom_minimum_size = Vector2(0, 32)
+	vb.add_child(foot)
+	var pad := Control.new()
+	pad.custom_minimum_size = Vector2(10, 0)
+	foot.add_child(pad)
+	var fl := _label("Day %d  -  Level %d  -  %d copper" % [Game.day, Game.level, Game.copper], 16, Color("#ffffff"), true, foot)
+	fl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var fr := _label("Copyright Grubnik Industries. Do not distribute the parcels.", 16, Color("#ffffff"), true, foot)
+	fr.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	var pad2 := Control.new()
+	pad2.custom_minimum_size = Vector2(10, 0)
+	foot.add_child(pad2)
+
+
+func show_pause(on_resume: Callable, on_title: Callable) -> void:
+	var vb := _open_modal(420, true)
+	modal_tag = "pause"
+	get_tree().paused = true
+	var t := _ink("Game Menu", 24, vb)
+	t.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	var back := func():
+		close_modal()
+		on_resume.call()
+	_button("Back to Game", vb, back, true, true)
+	_button("Options...", vb, func():
+		show_options(func():
+			show_pause(on_resume, on_title), true), true, true)
+	_button("Open Clips Folder", vb, func():
+		var dir := ProjectSettings.globalize_path("user://clips")
+		DirAccess.make_dir_recursive_absolute(dir)
+		OS.shell_open(dir), true, true)
+	_button("Save and Quit to Title", vb, func():
+		close_modal(false)
+		Game.save_game()
+		on_title.call(), true, true)
+
+
+func _slider_row(vb: Control, title: String, key: String, lo: float, hi: float, step: float, fmt: Callable) -> void:
+	var lbl := _label("", 16, Color("#e0e0e0"), true, vb)
+	var sl := HSlider.new()
+	sl.min_value = lo
+	sl.max_value = hi
+	sl.step = step
+	sl.value = float(Game.settings[key])
+	sl.custom_minimum_size = Vector2(0, 36)
+	sl.focus_mode = Control.FOCUS_NONE
+	var upd := func(v: float):
+		lbl.text = "%s: %s" % [title, fmt.call(v)]
+	upd.call(sl.value)
+	sl.value_changed.connect(func(v: float):
+		Game.settings[key] = v
+		upd.call(v)
+		Game.apply_settings()
+		Game.save_settings())
+	vb.add_child(sl)
+
+
+func show_options(on_done: Callable, dim := false) -> void:
+	var vb := _open_modal(560, dim)
+	modal_tag = "options"
+	var t := _ink("Options", 24, vb)
+	t.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	var pct := func(v: float): return "%d%%" % int(round(v * 100.0))
+	_slider_row(vb, "Master Volume", "master", 0.0, 1.0, 0.05, pct)
+	_slider_row(vb, "Music", "music", 0.0, 1.0, 0.05, pct)
+	_slider_row(vb, "Sound Effects", "sfx", 0.0, 1.0, 0.05, pct)
+	_slider_row(vb, "FOV", "fov", 60.0, 110.0, 1.0, func(v: float): return "%d" % int(v))
+	_slider_row(vb, "Mouse Sensitivity", "sens", 0.25, 2.5, 0.05, pct)
+	var cam_btn := _button("", vb, func(): pass, true, true)
+	var upd := func():
+		cam_btn.text = "Camcorder Filter: %s" % ("ON" if Game.settings["camcorder"] else "OFF")
+	upd.call()
+	cam_btn.pressed.connect(func():
+		Game.settings["camcorder"] = not Game.settings["camcorder"]
+		Game.save_settings()
+		upd.call())
+	var ctl := _label("WASD move  SPACE jump  E interact  TAB pack  LMB attack  RMB block\nSHIFT roll  F kick  Q bottle  R grog  Z holler  V scan  C clip", 16, Color("#a0a0a0"), true, vb)
+	ctl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_button("Done", vb, func():
+		close_modal(false)
+		on_done.call(), true, true)
 
 
 func show_result(data: Dictionary, on_close: Callable) -> void:
