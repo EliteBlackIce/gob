@@ -228,6 +228,9 @@ static func lighthouse() -> ArrayMesh:
 
 ## The whole room shell: floor, walls, ceiling, beams, windows, fireplace mass, bar, job board,
 ## wall of shame, pigeonholes, cellar hatch. x -44..44, z -32..32, y 0..26. Front (door) is +z.
+const FRONT_POSTS := []
+
+
 static func tavern_room() -> ArrayMesh:
 	if _c.has("room"):
 		return _c["room"]
@@ -249,7 +252,8 @@ static func tavern_room() -> ArrayMesh:
 	v.planks(-44, 26, -32, 44, 27, 32, Color("#8a6a48"), true, 2, 16)
 	for px in range(-36, 40, 12):
 		v.box(px, 0, -32, px + 2, 26, -30, BEAM, 0.06)
-		v.box(px, 0, 30, px + 2, 26, 32, BEAM, 0.06)
+		if px in FRONT_POSTS:
+			v.box(px, 0, 30, px + 2, 26, 32, BEAM, 0.06)                # (none in front of the door!)
 		v.box(px, 23, -32, px + 2, 26, 32, BEAM, 0.06)               # tie beams across
 	for pz in range(-24, 28, 12):
 		v.box(-44, 0, pz, -42, 26, pz + 2, BEAM, 0.06)
@@ -258,15 +262,19 @@ static func tavern_room() -> ArrayMesh:
 	v.box(-44, 24, -1, 44, 26, 1, BEAM.darkened(0.1), 0.05)            # ridge beam
 	for px in range(-36, 40, 12):
 		for sgn in [-1, 1]:
+			if sgn > 0 and not (px in FRONT_POSTS):
+				continue
 			for k in 5:
 				v.set_v(px, 22 - k, -30 + k if sgn < 0 else 30 - k, BEAM, 0.05)   # braces
+	for fp in [-40, -16, 14, 38]:
+		v.box(fp, 0, 30, fp + 2, 26, 32, BEAM, 0.06)                     # front wall posts, clear of the door and windows
 	# doors (front = +z door, back = boss door): painted in place, frames proud of the wall
 	_door(v, -5, 0, 32, 10, 14, -1)
 	_door(v, 14, 0, -33, 10, 16, 1)
 	v.box(18, 17, -33, 20, 19, -31, GOLD, 0.03)                     # boss emblem above the door
 	v.box(17, 18, -33, 21, 19, -31, GOLD, 0.03)
 	# windows on the front wall (moonlight)
-	for wx in [-30, 24]:
+	for wx in [-30]:
 		v.remove_box(wx, 6, 32, wx + 8, 16, 33)
 		v.box(wx, 6, 32, wx + 8, 16, 33, Color("#7a98ff", 0.45), 0.0)
 		v.box(wx + 3, 6, 32, wx + 5, 16, 33, BEAM, 0.04)

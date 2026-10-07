@@ -282,6 +282,12 @@ func tavern_shots() -> void:
 	await _frames(10)
 	var p := t.player
 	var views := [
+		["door", Vector3(0.0, 0.1, 2.5), 180.0],
+		["wide", Vector3(0.0, 0.1, 6.0), 0.0],
+		["west", Vector3(4.0, 0.1, 1.0), 90.0],
+		["fire", Vector3(2.5, 0.1, -3.5), -90.0],
+		["south", Vector3(0.0, 0.1, -1.5), 180.0],
+		["north", Vector3(-1.0, 0.1, 3.0), 0.0],
 		["smith", Vector3(5.5, 0.1, 4.0), 90.0 - 0.0],
 		["dummy", Vector3(3.0, 0.1, 3.0), -60.0],
 		["realtor", Vector3(-3.5, 0.1, 1.0), 90.0],

@@ -24,6 +24,7 @@ func _ready() -> void:
 	_build_decor()
 	_build_services()
 	_build_trophies()
+	_build_extras()
 	_spawn_player()
 	_mk_main = _make_marker(Color("#ffd24a"))
 	_mk_cellar = _make_marker(Color("#7fd8ff"))
@@ -300,6 +301,7 @@ func _spawn_player() -> void:
 func _process(delta: float) -> void:
 	_t += delta
 	_update_guide()
+	_animate_critters()
 
 
 # ---------- interactions ----------
@@ -439,6 +441,9 @@ func _build_services() -> void:
 
 
 var _house_model: MeshInstance3D
+var _cat: Dictionary = {}
+var _pigeon: Dictionary = {}
+var _bell_n := 0
 
 
 func _refresh_house() -> void:
@@ -449,29 +454,31 @@ func _refresh_house() -> void:
 
 
 func _build_trophies() -> void:
-	var shelf := Vox.new(0.05)
-	shelf.planks(0, 0, 0, 90, 3, 6, Color("#6a4a30"), true, 2, 22)
-	shelf.box(-1, -1, 0, 91, 0, 6, Color("#4e3220"), 0.05)
-	_mesh(shelf.build(Vector3(45, 0, 0)), 0.05, Vector3(-4.3, 2.3, 7.55), 180.0)
-	Style.label3d(self, "TROPHY SHELF", Vector3(-4.3, 3.9, 7.7), 0.007, Color("#f3d98a"), Vector3(0, 180, 0))
+	# a glass display case by the fire: one velvet pedestal per boss
+	var cx := 4.9
+	var cz := -1.0
+	_mesh(VoxTavern.case_stand(), 0.05, Vector3(cx, 0, cz), 0.0)
+	Style.solid_box(self, Vector3(3.5, 2.1, 1.0), Vector3(cx, 1.05, cz))
+	Style.label3d(self, "TROPHY CASE", Vector3(cx, 2.35, cz), 0.007, Color("#f3d98a"), Vector3.ZERO, true)
 	var order := ["auditor", "mimic_king", "landlord", "dragon"]
 	var names := {"auditor": "The Auditor", "mimic_king": "Mimic King", "landlord": "The Landlord", "dragon": "Overdue Dragon"}
+	var pedx := [-1.2, -0.4, 0.4, 1.2]
 	for i in order.size():
 		var id: String = order[i]
 		var got := Game.trophies.has(id)
 		var v := Vox.new(0.05)
 		match id:
 			"auditor":
-				v.box(0, 0, 0, 8, 8, 8, Color("#d8d2bc"), 0.06)
+				v.box(0, 0, 0, 8, 8, 8, Color("#d8d2bc"), 0.04)
 				v.box(1, 5, 7, 3, 7, 8, Color("#1a1a22"), 0.0)
 				v.box(5, 5, 7, 7, 7, 8, Color("#1a1a22"), 0.0)
 				v.box(-1, 8, -1, 9, 9, 9, Color("#1a1a22"), 0.0)
 				v.box(1, 9, 1, 7, 15, 7, Color("#1a1a22"), 0.0)
 			"mimic_king":
-				v.box(0, 0, 0, 12, 4, 8, Color("#e6b840"), 0.05)
-				for cx in [0, 3, 6, 9, 11]:
-					v.box(cx, 4, 0, cx + 1, 8, 1, Color("#e6b840"), 0.05)
-					v.box(cx, 4, 7, cx + 1, 8, 8, Color("#e6b840"), 0.05)
+				v.box(0, 0, 0, 12, 4, 8, Color("#e6b840"), 0.04)
+				for ccx in [0, 3, 6, 9, 11]:
+					v.box(ccx, 4, 0, ccx + 1, 8, 1, Color("#e6b840"), 0.04)
+					v.box(ccx, 4, 7, ccx + 1, 8, 8, Color("#e6b840"), 0.04)
 				v.box(5, 1, 7, 7, 3, 8, Color("#d83a4a", 0.5), 0.0)
 			"landlord":
 				v.cyl_y(0.0, 0.0, 0, 1, 4.0, 4.0, Color("#e6b840"), 0.03)
@@ -479,14 +486,15 @@ func _build_trophies() -> void:
 				for k in 4:
 					v.box(-5 + k * 3, -6, 0, -4 + k * 3, 0, 1, Color("#c8a030"), 0.05)
 					v.box(-6 + k * 3, -8, 0, -3 + k * 3, -6, 1, Color("#c8a030"), 0.05)
+				v.box(-6, 1, -1, 6, 3, 1, Color("#c8a030"), 0.03)
 			"dragon":
 				for y in 14:
 					var w := maxi(5 - y / 3, 1)
-					v.box(-w, y, -w, w, y + 1, w, Color("#e8d8a0").darkened(0.02 * y), 0.05)
-		var mi := _mesh(v.build(Vector3(4, 0, 4)), 0.05, Vector3(-6.4 + i * 1.3, 2.55, 7.45), 180.0)
+					v.box(-w, y, -w, w, y + 1, w, Color("#e8d8a0").darkened(0.02 * y), 0.04)
+		var pos := Vector3(cx + float(pedx[i]), 1.0 if id != "landlord" else 1.35, cz)
+		var mi := _mesh(v.build_coarse(Vector3(4, 0, 4)), 0.05, pos, 0.0)
 		mi.visible = got
-		var lab := Style.label3d(self, names[id] if got else "???", Vector3(-6.4 + i * 1.3, 2.15, 7.62), 0.0045, Color("#f3d98a") if got else Color("#7a6a5a"), Vector3(0, 180, 0))
-		lab.visible = true
+		Style.label3d(self, names[id] if got else "???", Vector3(cx + float(pedx[i]), 0.55, cz - 0.52), 0.0042, Color("#f3d98a") if got else Color("#7a6a5a"), Vector3.ZERO)
 
 
 func _smith_menu(_by: Node) -> void:
@@ -502,3 +510,152 @@ func _stash(_by: Node) -> void:
 
 func _realtor(_by: Node) -> void:
 	Menus.show_realtor(ui, func(): _refresh_house())
+
+
+# ---------------------------------------------------------------- a lived-in room
+
+func _prop(mesh: Mesh, pos: Vector3, yaw := 0.0, scl := 1.0) -> MeshInstance3D:
+	var mi := MeshInstance3D.new()
+	mi.mesh = mesh
+	mi.material_override = VMat.solid(0.05, 4.0)
+	mi.position = pos
+	mi.rotation_degrees.y = yaw
+	mi.scale = Vector3.ONE * scl
+	add_child(mi)
+	return mi
+
+
+func _build_extras() -> void:
+	# --- hanging from the beams: hams, sausages, herbs, a chandelier and a caged ex-employee
+	for hp in [Vector3(-2.75, 5.45, 1.4), Vector3(-2.75, 5.35, 2.7), Vector3(-2.75, 5.5, -0.8), Vector3(-5.75, 5.4, 4.5)]:
+		_prop(VoxTavern.ham(), hp, randf() * 360.0)
+	for sp in [Vector3(3.25, 5.6, 4.0), Vector3(3.25, 5.6, -2.2), Vector3(-8.75, 5.6, 2.0)]:
+		_prop(VoxTavern.sausages(), sp, 90.0)
+	for hb in [Vector3(-8.7, 5.55, -1.0), Vector3(-8.7, 5.55, 4.0), Vector3(-5.8, 5.55, -0.5), Vector3(0.25, 5.55, -3.0)]:
+		_prop(VoxTavern.herbs(), hb, randf() * 360.0)
+	_prop(DProps.chain(26), Vector3(0.25, 5.85, 1.0))
+	_prop(VoxTavern.chandelier(), Vector3(0.25, 4.5, 1.0), 0.0)
+	_light(Vector3(0.25, 4.3, 1.0), Color("#ffc878"), 1.3, 9.0)
+	_prop(DProps.chain(22), Vector3(3.25, 5.8, 0.6))
+	_prop(VoxTavern.cage(), Vector3(3.25, 3.5, 0.6), 0.0)
+	Style.label3d(self, "Previous Employee", Vector3(3.25, 5.0, 0.6), 0.0045, Color("#d8c8a0"), Vector3.ZERO, true)
+
+	# --- south wall: weapon rack, armour, shield, posters, coat rack, welcome mat
+	_prop(VoxTavern.weapon_rack(), Vector3(-6.5, 0, 7.8), 180.0)
+	Style.solid_box(self, Vector3(1.6, 1.5, 0.4), Vector3(-6.5, 0.75, 7.7))
+	_prop(VoxTavern.armor_stand(), Vector3(-4.4, 0, 7.4), 180.0)
+	Style.solid_box(self, Vector3(0.7, 2.0, 0.6), Vector3(-4.4, 1.0, 7.4))
+	_prop(VoxTavern.shield(Color("#2a4a8a")), Vector3(-9.0, 2.6, 7.95), 180.0)
+	_prop(VoxTavern.shield(Color("#8a2a2a")), Vector3(-9.0, 1.6, 7.95), 180.0, 0.8)
+	for pi in 3:
+		_prop(VoxTavern.poster(pi), Vector3(-2.9 + pi * 0.7, 2.6 - (pi % 2) * 0.15, 7.96), 180.0)
+	_prop(VoxTavern.coat_rack(), Vector3(2.9, 0, 7.4))
+	_prop(VoxTavern.welcome_mat(), Vector3(0, 0.03, 6.2))
+	_prop(VoxTavern.plant(1), Vector3(3.8, 0, 7.3))
+	_prop(VoxTavern.plant(0), Vector3(-1.9, 0, 7.4))
+	_prop(VoxTavern.island_map(), Vector3(2.2, 2.7, 7.95), 180.0)
+	Style.label3d(self, "THE ISLAND (X = where the parcels went)", Vector3(2.2, 2.35, 7.9), 0.0035, Color("#3a2410"), Vector3(0, 180, 0))
+	_prop(VoxTavern.lute(), Vector3(-10.9, 2.7, -6.9), 90.0)
+	_prop(VoxTavern.poster(1), Vector3(-10.93, 2.2, -6.0), 90.0)
+
+	# --- north wall: bookshelf, chalkboard, plants
+	_prop(VoxTavern.bookshelf(), Vector3(2.0, 0, -7.85))
+	Style.solid_box(self, Vector3(2.2, 2.6, 0.5), Vector3(2.0, 1.3, -7.7))
+	_prop(VoxTavern.plant(0), Vector3(0.7, 0, -7.3))
+	var ch := _prop(VoxTavern.chalkboard(), Vector3(0.95, 0, -2.5), 0.0)
+	ch.position.y = 0.0
+	Style.label3d(self, "TODAY:\nGROG  (always)\nGROG  (large)\nSOUP  (no)", Vector3(0.95, 0.85, -2.43), 0.0042, Color("#f0ecd8"), Vector3.ZERO)
+
+	# --- the bar: tankards, a pile of other people's copper
+	_prop(VoxTavern.tankard_set(), Vector3(-7.7, 1.52, -4.2), 10.0)
+	_prop(VoxTavern.tankard_set(), Vector3(-3.6, 1.52, -3.8), -25.0)
+	_prop(VoxTavern.gold_pile(), Vector3(-1.2, 1.52, -4.1))
+	_prop(VoxTavern.plate(1), Vector3(-5.2, 1.52, -3.7))
+	_prop(VoxTavern.plate(2), Vector3(-9.2, 1.52, -3.9), 40.0)
+
+	# --- sorting table (the post office part of the post office)
+	_prop(VoxTavern.sorting_table(), Vector3(-3.2, 0, -1.2), 0.0)
+	Style.solid_box(self, Vector3(1.8, 1.0, 0.9), Vector3(-3.2, 0.5, -1.2))
+	var bell := _prop(VoxTavern.bell(), Vector3(-2.7, 1.0, -1.0))
+	Style.label3d(self, "SORTING DESK", Vector3(-3.2, 2.15, -1.2), 0.0055, Color("#f3d98a"), Vector3.ZERO, true)
+	var bi := Interactable.make(self, Vector3(-2.7, 1.2, -1.0), "Ring the service bell", Callable(), 2.6)
+	bi.callback = func(_by: Node):
+		_bell_n += 1
+		Sfx.play("bell")
+		var lines := ["Brin: \"WHAT.\"", "Brin: \"Ring that again and I charge you.\"", "Brin: \"I am RIGHT HERE.\"", "Brin: \"...fine. Take a stamp.\"", "A crow somewhere gets very excited."]
+		ui.toast(lines[(_bell_n - 1) % lines.size()], Color("#ffe9a0"))
+		Style.burst(self, bell.global_position + Vector3(0, 0.5, 0), Color("#ffe27a"), 6, 2.0, 0.06, 0.5)
+
+	# --- the fire corner: bear rug, rocking chair, cat, cauldron, firewood, hay
+	_prop(VoxTavern.bear_rug(), Vector3(6.6, 0.03, -3.6), 90.0)
+	_prop(VoxTavern.rocking_chair(), Vector3(7.5, 0, -2.7), 90.0)
+	Style.solid_box(self, Vector3(0.6, 0.9, 0.6), Vector3(7.5, 0.45, -2.7))
+	_prop(VoxTavern.cauldron(), Vector3(9.55, 0.1, -3.2))
+	_prop(VoxTavern.firewood(), Vector3(9.9, 0, -7.0), 90.0)
+	_prop(VoxTavern.hay(), Vector3(7.5, 0, -7.2), 8.0)
+	Style.solid_box(self, Vector3(1.0, 0.6, 0.6), Vector3(7.5, 0.3, -7.2))
+	_prop(VoxTavern.plant(1), Vector3(10.2, 0, -0.2))
+	_cat = _make_cat(Vector3(6.2, 0.05, -4.4), 35.0)
+
+	# --- food on the tables, more candles, a pigeon who pays no rent
+	var tspots := [Vector3(3.0, 0.9, 2.0), Vector3(7.0, 0.9, 4.5), Vector3(2.0, 0.9, -3.0)]
+	for i in tspots.size():
+		_prop(VoxTavern.plate(i), tspots[i] + Vector3(0.4, 0, 0.3), 20.0 * i)
+		_prop(VoxTavern.plate(i + 1), tspots[i] + Vector3(-0.2, 0, -0.35), -30.0)
+		_prop(VoxTavern.tankard_set(), tspots[i] + Vector3(-0.9, 0, 0.1), 80.0 * i, ).scale = Vector3.ONE * 0.7
+	_pigeon = _make_pigeon(Vector3(-10.55, 4.78, -0.6))
+	Style.label3d(self, "Gerald", Vector3(-10.4, 5.35, -0.6), 0.0045, Color("#d8d8e8"), Vector3(0, 90, 0))
+
+
+func _make_cat(pos: Vector3, yaw: float) -> Dictionary:
+	var parts := VoxTavern.cat(Color("#d88a3a"))
+	var root := Node3D.new()
+	root.position = pos
+	root.rotation_degrees.y = yaw
+	add_child(root)
+	var mat := VMat.solid(0.05, 4.0)
+	var body := MeshInstance3D.new()
+	body.mesh = parts["body"]
+	body.material_override = mat
+	root.add_child(body)
+	var head := MeshInstance3D.new()
+	head.mesh = parts["head"]
+	head.material_override = mat
+	head.position = Vector3(0, 0.05, 0.35)
+	root.add_child(head)
+	var tail := MeshInstance3D.new()
+	tail.mesh = parts["tail"]
+	tail.material_override = mat
+	tail.position = Vector3(0.0, 0.1, -0.3)
+	tail.rotation_degrees.y = 180.0
+	root.add_child(tail)
+	return {"root": root, "tail": tail, "head": head}
+
+
+func _make_pigeon(pos: Vector3) -> Dictionary:
+	var parts := VoxTavern.pigeon()
+	var root := Node3D.new()
+	root.position = pos
+	root.rotation_degrees.y = 90.0
+	add_child(root)
+	var mat := VMat.solid(0.05, 4.0)
+	var body := MeshInstance3D.new()
+	body.mesh = parts["body"]
+	body.material_override = mat
+	root.add_child(body)
+	var head := MeshInstance3D.new()
+	head.mesh = parts["head"]
+	head.material_override = mat
+	head.position = Vector3(0, 0.25, 0.3)
+	root.add_child(head)
+	return {"root": root, "head": head}
+
+
+func _animate_critters() -> void:
+	if not _cat.is_empty():
+		(_cat["tail"] as Node3D).rotation_degrees.y = 180.0 + sin(_t * 1.6) * 28.0
+		(_cat["head"] as Node3D).position.y = 0.05 + sin(_t * 1.1) * 0.012           # slow purr-breathing
+	if not _pigeon.is_empty():
+		var h := _pigeon["head"] as Node3D
+		h.position.z = 0.3 + (0.06 if int(_t * 2.2) % 3 == 0 else 0.0)
+		h.rotation_degrees.y = sin(_t * 0.7) * 25.0
